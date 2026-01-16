@@ -1,3 +1,5 @@
+require("dotenv").config();
+
 // ===== express server =====
 const express = require("express");
 const app = express();
@@ -22,7 +24,7 @@ const client = new Client({
   ],
 });
 
-client.once("ready", () => {
+client.once("clientReady", () => {
   console.log(`Bot logged in as ${client.user.tag}`);
 });
 
