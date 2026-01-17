@@ -1,5 +1,12 @@
 require("dotenv").config();
 
+// ===== supabase =====
+const { createClient } = require("@supabase/supabase-js");
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_ANON_KEY,
+);
+
 // ===== express server =====
 const express = require("express");
 const app = express();
@@ -32,6 +39,26 @@ client.on("messageCreate", (message) => {
   if (message.author.bot) return;
   if (message.content === "!ping") {
     message.reply("pong 🏓");
+  }
+});
+
+client.on("messageCreate", async (message) => {
+  if (message.author.bot) return;
+
+  if (message.content === "!register") {
+    const { id, username } = message.author;
+
+    const { error } = await supabase.from("users").insert({
+      discord_id: id,
+      username: username,
+    });
+
+    if (error) {
+      console.error(error);
+      return message.reply("註冊失敗 😢");
+    }
+
+    message.reply("註冊成功 ✅");
   }
 });
 
