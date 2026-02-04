@@ -7,6 +7,8 @@ const supabase = createClient(
   process.env.SUPABASE_ANON_KEY,
 );
 
+const cron = require("node-cron");
+
 // ===== express server =====
 const express = require("express");
 const app = express();
@@ -33,6 +35,18 @@ const client = new Client({
 
 client.once("clientReady", () => {
   console.log(`Bot logged in as ${client.user.tag}`);
+
+  // 每天 06:00（台北時間）執行
+  cron.schedule(
+    "0 6 * * *",
+    () => {
+      sendDailyWeather(client);
+    },
+    { timezone: "Asia/Taipei" },
+  );
+
+  // 啟動時先發一次，方便測試
+  // sendDailyWeather(client);
 });
 
 async function getWeather(locationName) {
@@ -74,6 +88,47 @@ async function getWeather(locationName) {
     startTime: map?.Wx?.[0]?.startTime ?? null,
     endTime: map?.Wx?.[0]?.endTime ?? null,
   };
+}
+
+async function sendDailyWeather(client) {
+  try {
+    const channelId = process.env.WEATHER_CHANNEL_ID;
+    if (!channelId) {
+      console.log("WEATHER_CHANNEL_ID not set, skip daily weather.");
+      return;
+    }
+
+    const city = (process.env.WEATHER_DEFAULT_CITY || "臺北市").replaceAll(
+      "台",
+      "臺",
+    );
+    const w = await getWeather(city);
+
+    if (!w) {
+      console.log(`Weather not found for ${city}`);
+      return;
+    }
+
+    const channel = await client.channels.fetch(channelId);
+    if (!channel || !channel.isTextBased()) {
+      console.log("Channel not found or not text-based.");
+      return;
+    }
+
+    const msg =
+      `🌅 每日天氣（06:00）\n` +
+      `🌦️ ${w.location}\n` +
+      `時間：${w.startTime} ~ ${w.endTime}\n` +
+      `天氣：${w.Wx}\n` +
+      `溫度：${w.MinT}°C ~ ${w.MaxT}°C\n` +
+      `降雨機率：${w.PoP}%\n` +
+      `舒適度：${w.CI}`;
+
+    await channel.send(msg);
+    console.log("Daily weather sent.");
+  } catch (err) {
+    console.error("sendDailyWeather error:", err);
+  }
 }
 
 client.on("messageCreate", async (message) => {
