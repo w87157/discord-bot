@@ -4,7 +4,7 @@ require("dotenv").config();
 const { createClient } = require("@supabase/supabase-js");
 const supabase = createClient(
   process.env.SUPABASE_URL,
-  process.env.SUPABASE_ANON_KEY,
+  process.env.SUPABASE_ANON_KEY
 );
 
 // ===== express server =====
@@ -35,17 +35,22 @@ client.once("clientReady", () => {
   console.log(`Bot logged in as ${client.user.tag}`);
 });
 
-client.on("messageCreate", (message) => {
-  if (message.author.bot) return;
-  if (message.content === "!ping") {
-    message.reply("pong 🏓");
-  }
-});
-
 client.on("messageCreate", async (message) => {
   if (message.author.bot) return;
 
-  if (message.content === "!register") {
+  // 檢查第一個字是否為 '!'
+  if (!message.content.startsWith("!")) return;
+
+  // 去掉 '!' 並拆成指令 + 參數
+  const args = message.content.slice(1).trim().split(/ +/);
+  const command = args.shift().toLowerCase();
+
+  // 指令區
+  if (command === "ping") {
+    message.reply("pong 🏓");
+  }
+
+  if (command === "register") {
     const { id, username } = message.author;
 
     const { error } = await supabase.from("users").insert({
