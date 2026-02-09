@@ -1,5 +1,7 @@
 require("dotenv").config();
 
+const config = require("./config");
+
 // ===== supabase =====
 const { createClient } = require("@supabase/supabase-js");
 const supabase = createClient(
@@ -46,7 +48,7 @@ client.once("clientReady", () => {
   );
 
   // 啟動時先發一次，方便測試
-  // sendDailyWeather(client);
+  sendDailyWeather(client);
 });
 
 async function getWeather(locationName) {
@@ -98,20 +100,25 @@ async function sendDailyWeather(client) {
       return;
     }
 
-    const city = (process.env.WEATHER_DEFAULT_CITY || "臺北市").replaceAll(
-      "台",
-      "臺",
-    );
+    const channel = await client.channels.fetch(channelId);
+    if (!channel || !channel.isTextBased()) {
+      console.log("Channel not found or not text-based.");
+      return;
+    }
+
+    const messages = await channel.messages.fetch({ limit: 10 });
+    const lastBotMsg = messages.find((msg) => msg.author.id === client.user.id);
+
+    if (lastBotMsg) {
+      await lastBotMsg.delete().catch(() => {});
+      console.log("Deleted yesterday weather message.");
+    }
+
+    const city = config.weather.defaultCity.replaceAll("台", "臺");
     const w = await getWeather(city);
 
     if (!w) {
       console.log(`Weather not found for ${city}`);
-      return;
-    }
-
-    const channel = await client.channels.fetch(channelId);
-    if (!channel || !channel.isTextBased()) {
-      console.log("Channel not found or not text-based.");
       return;
     }
 
