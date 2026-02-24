@@ -4,8 +4,8 @@ const { Client, GatewayIntentBits, Collection } = require("discord.js");
 const express = require("express");
 
 // 引入事件處理器
-const readyEvent = require("./events/ready");
-const messageEvent = require("./events/messageCreate");
+const readyEvent = require("./Events/ready");
+const messageEvent = require("./Events/messageCreate");
 
 const client = new Client({
   intents: [
@@ -22,8 +22,8 @@ const client = new Client({
 client.commands = new Collection();
 
 // 引入指令檔案
-const pingCommand = require("./commands/ping");
-const weatherCommand = require("./commands/weather");
+const pingCommand = require("./Commands/ping");
+const weatherCommand = require("./Commands/weather");
 
 // 註冊指令
 client.commands.set(pingCommand.name, pingCommand);
