@@ -1,5 +1,5 @@
 const { EmbedBuilder } = require("discord.js");
-const { getWeather } = require("../services/cwaService");
+const { getWeather } = require("../Services/cwaService");
 
 module.exports = {
   name: "天氣",

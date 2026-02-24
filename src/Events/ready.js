@@ -1,6 +1,9 @@
 const cron = require("node-cron");
 const config = require("../../config");
 
+const { EmbedBuilder } = require("discord.js");
+const { getWeather } = require("../Services/cwaService");
+
 module.exports = (client) => {
   console.log(`✅ ${client.user.tag} 已就緒！`);
 

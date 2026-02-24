@@ -1,5 +1,4 @@
 const config = require("../../config");
-const weatherCmd = require("../commands/weather");
 
 module.exports = async (message) => {
   if (message.author.bot || !message.content.startsWith(config.prefix)) return;
@@ -8,7 +7,7 @@ module.exports = async (message) => {
   const commandName = args.shift().toLowerCase();
 
   // 從 Collection 中尋找指令
-  const command = client.commands.get(commandName);
+  const command = message.client.commands.get(commandName);
 
   if (!command) return;
 
@@ -18,5 +17,4 @@ module.exports = async (message) => {
     console.error(error);
     message.reply("執行指令時發生錯誤！");
   }
-  
 };
