@@ -2,7 +2,6 @@ const { formatCityName } = require("../Utils/helper");
 
 async function getWeather(locationName) {
   const city = formatCityName(locationName);
-  // 這裡可以引用 utils/helper.js 的轉換邏輯，先簡單寫在 service 中
   const base = "https://opendata.cwa.gov.tw/api/v1/rest/datastore/F-C0032-001";
   const url = new URL(base);
   url.searchParams.set("Authorization", process.env.CWA_API_KEY);

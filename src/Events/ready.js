@@ -7,9 +7,21 @@ module.exports = (client) => {
   // 每天 06:00 執行定時天氣任務
   cron.schedule(
     config.weather.schedule,
-    () => {
+    async () => {
       console.log("⏰ 執行定時天氣發送任務...");
-      // 呼叫發送邏輯 (例如呼叫 sendDailyWeather)
+
+      const data = await getWeather(config.weather.defaultCity);
+      if (!data) return;
+
+      const channel = client.channels.cache.get(process.env.WEATHER_CHANNEL_ID);
+      if (channel) {
+        const embed = new EmbedBuilder()
+          .setTitle(`📢 早安！今日 ${data.location} 天氣預報`)
+          .setDescription(`${data.Wx}，溫度約 ${data.MinT}~${data.MaxT}°C`)
+          .setColor(0x0099ff);
+
+        channel.send({ embeds: [embed] });
+      }
     },
     { timezone: config.weather.timezone },
   );

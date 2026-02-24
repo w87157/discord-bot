@@ -7,10 +7,16 @@ module.exports = async (message) => {
   const args = message.content.slice(config.prefix.length).trim().split(/ +/);
   const commandName = args.shift().toLowerCase();
 
-  // 簡單的指令分發
-  if (commandName === "ping") {
-    message.reply("pong!");
-  } else if (commandName === "天氣") {
-    await weatherCmd.execute(message, args);
+  // 從 Collection 中尋找指令
+  const command = client.commands.get(commandName);
+
+  if (!command) return;
+
+  try {
+    await command.execute(message, args);
+  } catch (error) {
+    console.error(error);
+    message.reply("執行指令時發生錯誤！");
   }
+  
 };
