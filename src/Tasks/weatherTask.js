@@ -4,7 +4,7 @@ const { EmbedBuilder } = require("discord.js");
 const { getWeather } = require("../Services/cwaService");
 const supabase = require("../Services/supabase");
 
-const sendWeatherReports = async () => {
+const sendWeatherReports = async (client) => {
   console.log("⏰ 執行定時天氣發送任務 (資料庫排程)...");
 
   try {
@@ -82,7 +82,7 @@ module.exports = (client) => {
   cron.schedule(
     config.weather.schedule,
     async () => {
-      await sendWeatherReports();
+      await sendWeatherReports(client);
     },
     { timezone: config.weather.timezone },
   );
