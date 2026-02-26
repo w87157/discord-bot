@@ -13,8 +13,9 @@ module.exports = {
       return message.reply("❌ 指令格式錯誤。請使用：`!訂閱 天氣 [城市名稱]`");
     }
 
-    const formattedCity = formatCityName(cityName);
+    const city = formatCityName(cityName);
     const guildId = message.guild?.id || "DM"; // 如果是私訊則紀錄為 DM
+    const guildName = message.guild?.name || "私訊";
     const channelId = message.channel.id;
     const userId = message.author.id;
     const userName = message.author.username;
@@ -23,19 +24,19 @@ module.exports = {
       const { error } = await supabase.from("weather_subscriptions").upsert(
         {
           guild_id: guildId,
+          guild_name: guildName,
           channel_id: channelId,
           user_id: userId,
           user_name: userName,
-          city: formattedCity,
+          city: city,
+          updated_at: new Date().toISOString(),
         },
         { onConflict: "channel_id,user_id" },
       ); // 根據這兩個欄位判斷是否重複
 
       if (error) throw error;
 
-      await message.reply(
-        `✅ 訂閱成功！`,
-      );
+      await message.reply(`✅ 訂閱成功！`);
     } catch (error) {
       console.error("訂閱錯誤:", error);
       await message.reply("❌ 訂閱失敗。");
