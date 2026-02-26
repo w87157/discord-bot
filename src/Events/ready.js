@@ -31,6 +31,17 @@ module.exports = (client) => {
         try {
           const channel = await client.channels.fetch(sub.channel_id);
           if (channel) {
+            if (sub.last_message_id) {
+              try {
+                const oldMsg = await channel.messages.fetch(
+                  sub.last_message_id,
+                );
+                if (oldMsg) await oldMsg.delete();
+              } catch (err) {
+                console.log(`無法刪除舊訊息。`);
+              }
+            }
+
             const embed = new EmbedBuilder()
               .setColor(0xf1c40f)
               .setTitle(`🌅 每日天氣預報 - ${data.location}`)
@@ -50,9 +61,14 @@ module.exports = (client) => {
                 text: `預報時間：${data.startTime} ~ ${new Date().toLocaleString("zh-TW", { hour12: true })}`,
               });
 
-            await channel.send({
+            const sentMsg = await channel.send({
               embeds: [embed],
             });
+
+            await supabase
+              .from("weather_subscriptions")
+              .update({ last_message_id: sentMsg.id })
+              .match({ channel_id: sub.channel_id, user_id: sub.user_id });
           }
         } catch (err) {
           console.error(`頻道 ${sub.channel_id} 發送失敗:`, err.message);
