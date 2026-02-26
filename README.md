@@ -1,16 +1,20 @@
-├── config.js # 全域配置
-├── .env # 環境變數
-├── package.json
-└── src/
-    ├── index.js            # 入口點：初始化 Client
-    ├── Commands/           # 存放所有指令邏輯 (例如：!天氣, !ping)
-    │   ├── ping.js
-    │   └── weather.js
-    ├── Services/           # 存放外部 API 或資料庫邏輯
-    │   ├── cwaService.js   # 專門負責 CWA 氣象 API
-    │   └── supabase.js     # Supabase 初始化與操作
-    ├── Events/             # 存放 Discord 事件處理 (例如：messageCreate)
-    │   ├── ready.js
-    │   └── messageCreate.js
-    └── Utils/              # 存放小工具 (例如：城市名稱轉換)
-        └── helper.js
+discord-bot/
+├── src/
+├── config.js       # 全域設定 (Cron 排程字串、時區)
+├── .env  
+└── package.json     
+    ├── index.js
+    ├── Commands/
+    │   ├── ping.js             # 測試延遲
+    │   ├── weather.js          # 即時查詢天氣
+    │   └── subscribe.js        # 處理訂閱邏輯並寫入 Supabase
+    ├── Events/
+    │   ├── ready.js            # Bot 上線初始化，並啟動 Tasks
+    │   └── messageCreate.js    # 內容解析與指令分發
+    ├── Tasks/
+    │   └── weatherTask.js      # 核心業務：循環發送預報、刪除舊訊息
+    ├── Services/
+    │   ├── cwaService.js       # 氣象局 API 對接
+    │   └── supabase.js         # 資料庫連線實例
+    └── Utils/
+        └── helper.js           # 城市名稱格式化等小工具
