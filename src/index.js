@@ -21,13 +21,15 @@ const client = new Client({
  */
 client.commands = new Collection();
 
-// 引入指令檔案
+// 指令檔案
 const pingCommand = require("./Commands/ping");
 const weatherCommand = require("./Commands/weather");
+const subscribeCommand = require("./Commands/subscribe");
 
 // 註冊指令
 client.commands.set(pingCommand.name, pingCommand);
 client.commands.set(weatherCommand.name, weatherCommand);
+client.commands.set(subscribeCommand.name, subscribeCommand);
 
 // --- 註冊事件監聽 ---
 
