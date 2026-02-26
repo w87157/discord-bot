@@ -53,7 +53,7 @@ const sendWeatherReports = async (client) => {
               { name: "\u200B", value: "\u200B", inline: true },
             )
             .setFooter({
-              text: `預報時間：${data.startTime} ~ ${new Date().toLocaleString("zh-TW", { hour12: true })}`,
+              text: `預報時間：${new Date().toLocaleString("zh-TW", { hour12: true })}`,
             });
 
           const sentMsg = await channel.send({

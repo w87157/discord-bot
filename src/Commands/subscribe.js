@@ -5,7 +5,6 @@ module.exports = {
   name: "訂閱",
   description: "訂閱每日天氣預報",
   async execute(message, args) {
-    // 預期格式: !訂閱 天氣 臺北市
     const subType = args[0];
     const cityName = args[1];
 
