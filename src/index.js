@@ -1,11 +1,12 @@
 require("dotenv").config();
-const config = require("../config"); // 引入根目錄設定
+const config = require("../config");
 const { Client, GatewayIntentBits, Collection } = require("discord.js");
 const express = require("express");
 
 // 引入事件處理器
 const readyEvent = require("./Events/ready");
 const messageEvent = require("./Events/messageCreate");
+const interactionEvent = require("./Events/interactionCreate");
 
 const client = new Client({
   intents: [
@@ -25,22 +26,25 @@ client.commands = new Collection();
 const pingCommand = require("./Commands/ping");
 const weatherCommand = require("./Commands/weather");
 const subscribeCommand = require("./Commands/subscribe");
+const helpCommand = require("./Commands/help");
 
 // 註冊指令
 client.commands.set(pingCommand.name, pingCommand);
 client.commands.set(weatherCommand.name, weatherCommand);
 client.commands.set(subscribeCommand.name, subscribeCommand);
+client.commands.set(helpCommand.name, helpCommand);
 
 // --- 註冊事件監聽 ---
-
-// 當 Bot 準備就緒 (使用 clientReady 以符合 v14.15+ 要求)
 client.once("clientReady", () => {
   readyEvent(client);
 });
 
-// 當有新訊息時
 client.on("messageCreate", (message) => {
   messageEvent(message, client);
+});
+
+client.on("interactionCreate", (interaction) => {
+  interactionEvent(interaction, client);
 });
 
 // --- Express 伺服器 (防止 Bot 休眠) ---

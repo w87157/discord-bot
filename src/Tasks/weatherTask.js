@@ -76,7 +76,7 @@ const sendWeatherReports = async (client) => {
 
 module.exports = (client) => {
   // 啟動時立即執行一次
-  sendWeatherReports(client);
+  //sendWeatherReports(client);
 
   // 依照 config 設定的時間執行 (預設 06:00)
   cron.schedule(
