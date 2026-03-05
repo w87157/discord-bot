@@ -11,3 +11,5 @@ yarn-error.log*
 
 # OS
 .DS_Store
+
+PROJECT_CONTEXT.md

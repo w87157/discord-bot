@@ -21,7 +21,7 @@ module.exports = {
         { name: "降雨機率", value: `${data.PoP}%`, inline: true },
         { name: "天氣狀態", value: data.Wx },
       )
-      .setFooter({ text: `預報開始時間：${data.startTime}` });
+      .setFooter({ text: `${data.dateLabel} 全日預報` });
 
     await message.reply({ embeds: [embed] });
   },
