@@ -1,28 +1,29 @@
 const { formatCityName } = require("../Utils/helper");
 
 /**
- * 過濾出「今天 00:00 ~ 23:59」範圍內的時段
+ * 取得台灣時區（Asia/Taipei）的今天日期字串，格式 YYYY-MM-DD
+ * VM 預設為 UTC，直接用 new Date() 會導致日期偏移，需明確指定時區
+ */
+function getTaipeiDateStr() {
+  return new Date()
+    .toLocaleDateString("zh-TW", {
+      timeZone: "Asia/Taipei",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    })
+    .replace(/\//g, "-"); // 轉為 YYYY-MM-DD
+}
+
+/**
+ * 過濾出「今天 00:00 ~ 23:59（台灣時間）」範圍內的時段
  * CWA F-C0032-001 每個要素各自有自己的時段切割，不能用 index 對齊，
  * 因此每個要素都各自過濾一次。
  */
 function getTodaySlots(timeArray) {
-  const now = new Date();
-  const todayStart = new Date(
-    now.getFullYear(),
-    now.getMonth(),
-    now.getDate(),
-    0,
-    0,
-    0,
-  );
-  const todayEnd = new Date(
-    now.getFullYear(),
-    now.getMonth(),
-    now.getDate(),
-    23,
-    59,
-    59,
-  );
+  const todayStr = getTaipeiDateStr(); // e.g. "2026-03-06"
+  const todayStart = new Date(`${todayStr}T00:00:00+08:00`);
+  const todayEnd = new Date(`${todayStr}T23:59:59+08:00`);
 
   return timeArray.filter((slot) => {
     const start = new Date(slot.startTime);
@@ -83,9 +84,9 @@ async function getWeather(locationName) {
     // CI：取今天第一個時段的舒適度
     const CI = ciSlots[0]?.parameter?.parameterName ?? "無資料";
 
-    // 回傳時段範圍標示（今天 00:00 ~ 24:00）
-    const now = new Date();
-    const dateStr = now.toLocaleDateString("zh-TW", {
+    // 回傳時段範圍標示（台灣時間今天日期）
+    const dateStr = new Date().toLocaleDateString("zh-TW", {
+      timeZone: "Asia/Taipei",
       month: "long",
       day: "numeric",
     });
