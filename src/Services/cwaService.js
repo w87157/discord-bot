@@ -1,45 +1,77 @@
 const { formatCityName } = require("../Utils/helper");
 
-/**
- * 取得台灣時區（Asia/Taipei）的今天日期字串，格式 YYYY-MM-DD
- * VM 預設為 UTC，直接用 new Date() 會導致日期偏移，需明確指定時區
- */
-function getTaipeiDateStr() {
-  return new Date()
+/** CWA 回傳的時間為台灣當地時間，需明確加上 +08:00（避免 VM 在 UTC 時解析錯誤） */
+function parseCwaTime(timeStr) {
+  return new Date(`${timeStr.replace(" ", "T")}+08:00`);
+}
+
+function toTaipeiDateStr(date) {
+  return date
     .toLocaleDateString("zh-TW", {
       timeZone: "Asia/Taipei",
       year: "numeric",
       month: "2-digit",
       day: "2-digit",
     })
-    .replace(/\//g, "-"); // 轉為 YYYY-MM-DD
+    .replace(/\//g, "-");
 }
 
 /**
- * 過濾出「今天 00:00 ~ 23:59（台灣時間）」範圍內的時段
- * CWA F-C0032-001 每個要素各自有自己的時段切割，不能用 index 對齊，
- * 因此每個要素都各自過濾一次。
+ * 取得台灣時區（Asia/Taipei）的日期字串，格式 YYYY-MM-DD
+ * @param {number} offsetDays 0 = 今天，1 = 明天
  */
-function getTodaySlots(timeArray) {
-  const todayStr = getTaipeiDateStr(); // e.g. "2026-03-06"
-  const todayStart = new Date(`${todayStr}T00:00:00+08:00`);
-  const todayEnd = new Date(`${todayStr}T23:59:59+08:00`);
+function getTaipeiDateStr(offsetDays = 0) {
+  const ms = Date.now() + offsetDays * 86400000;
+  return toTaipeiDateStr(new Date(ms));
+}
+
+function getSlotDateStr(startTime) {
+  return toTaipeiDateStr(parseCwaTime(startTime));
+}
+
+/**
+ * 過濾出指定日 00:00 ~ 23:59（台灣時間）範圍內的時段
+ */
+function getSlotsForDateStr(timeArray, dateStr) {
+  const dayStart = new Date(`${dateStr}T00:00:00+08:00`);
+  const dayEnd = new Date(`${dateStr}T23:59:59+08:00`);
 
   return timeArray.filter((slot) => {
-    const start = new Date(slot.startTime);
-    const end = new Date(slot.endTime);
-    // 只要時段與今天有任何交集就納入
-    return start <= todayEnd && end >= todayStart;
+    const start = parseCwaTime(slot.startTime);
+    const end = parseCwaTime(slot.endTime);
+    return start <= dayEnd && end >= dayStart;
   });
 }
 
+/**
+ * 決定要彙整的目標日期。
+ * 查詢今日時，若 API 已無今日時段（常見於傍晚後資料更新），
+ * 改採回傳資料中最早一天的時段，避免啟動推播出現「無資料」。
+ */
+function resolveTargetDateStr(wxArray, dayOffset) {
+  const targetStr = getTaipeiDateStr(dayOffset);
+  if (getSlotsForDateStr(wxArray, targetStr).length > 0) return targetStr;
+  if (dayOffset !== 0 || wxArray.length === 0) return targetStr;
+  return getSlotDateStr(wxArray[0].startTime);
+}
+
+function getDayLabel(targetDateStr) {
+  if (targetDateStr === getTaipeiDateStr(0)) return "今日";
+  if (targetDateStr === getTaipeiDateStr(1)) return "明日";
+  return "";
+}
 function pickValues(slots) {
   return slots
     .map((s) => s?.parameter?.parameterName)
     .filter((v) => v !== undefined && v !== null);
 }
 
-async function getWeather(locationName) {
+/**
+ * @param {string} locationName
+ * @param {{ dayOffset?: number }} [options] dayOffset: 0 = 今天，1 = 明天
+ */
+async function getWeather(locationName, options = {}) {
+  const { dayOffset = 0 } = options;
   const city = formatCityName(locationName);
   const base = "https://opendata.cwa.gov.tw/api/v1/rest/datastore/F-C0032-001";
   const url = new URL(base);
@@ -59,33 +91,36 @@ async function getWeather(locationName) {
       map[el.elementName] = el.time || [];
     }
 
-    // 取今天的時段
-    const wxSlots = getTodaySlots(map["Wx"] || []);
-    const popSlots = getTodaySlots(map["PoP"] || []);
-    const minTSlots = getTodaySlots(map["MinT"] || []);
-    const maxTSlots = getTodaySlots(map["MaxT"] || []);
-    const ciSlots = getTodaySlots(map["CI"] || []);
+    const wxArray = map["Wx"] || [];
+    const targetDateStr = resolveTargetDateStr(wxArray, dayOffset);
 
-    // MinT：今日所有時段最低溫
+    const wxSlots = getSlotsForDateStr(wxArray, targetDateStr);
+    const popSlots = getSlotsForDateStr(map["PoP"] || [], targetDateStr);
+    const minTSlots = getSlotsForDateStr(map["MinT"] || [], targetDateStr);
+    const maxTSlots = getSlotsForDateStr(map["MaxT"] || [], targetDateStr);
+    const ciSlots = getSlotsForDateStr(map["CI"] || [], targetDateStr);
+
+    // MinT：該日所有時段最低溫
     const minTValues = pickValues(minTSlots).map(Number);
     const MinT = minTValues.length ? Math.min(...minTValues) : "無資料";
 
-    // MaxT：今日所有時段最高溫
+    // MaxT：該日所有時段最高溫
     const maxTValues = pickValues(maxTSlots).map(Number);
     const MaxT = maxTValues.length ? Math.max(...maxTValues) : "無資料";
 
-    // PoP：今日所有時段最大降雨機率
+    // PoP：該日所有時段最大降雨機率
     const popValues = pickValues(popSlots).map(Number);
     const PoP = popValues.length ? Math.max(...popValues) : "無資料";
 
-    // Wx：取今天第一個時段的天氣狀態描述（最具代表性）
+    // Wx：取該日第一個時段的天氣狀態描述（最具代表性）
     const Wx = wxSlots[0]?.parameter?.parameterName ?? "無資料";
 
-    // CI：取今天第一個時段的舒適度
+    // CI：取該日第一個時段的舒適度
     const CI = ciSlots[0]?.parameter?.parameterName ?? "無資料";
 
-    // 回傳時段範圍標示（台灣時間今天日期）
-    const dateStr = new Date().toLocaleDateString("zh-TW", {
+    const labelDate = parseCwaTime(
+      `${targetDateStr}T12:00:00`,
+    ).toLocaleDateString("zh-TW", {
       timeZone: "Asia/Taipei",
       month: "long",
       day: "numeric",
@@ -98,7 +133,10 @@ async function getWeather(locationName) {
       MinT,
       MaxT,
       CI,
-      dateLabel: dateStr, // 例如「3月6日」
+      dateLabel: labelDate, // 例如「5月20日」
+      // 定時推播（dayOffset=0）固定標示「今日」；手動查明日則依實際日期標示
+      dayLabel:
+        dayOffset === 0 ? "今日" : getDayLabel(targetDateStr) || "明日",
     };
   } catch (err) {
     console.error("CWA API Error:", err);

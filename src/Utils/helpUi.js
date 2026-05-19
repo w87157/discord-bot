@@ -31,7 +31,7 @@ function buildHelpEmbed() {
       [
         "從下方選單**直接操作**，或使用文字指令：",
         "",
-        `**即時查詢** — \`${prefix}天氣 [城市]\``,
+        `**明日預報查詢** — \`${prefix}天氣 [城市]\``,
         `**訂閱預報** — \`${prefix}訂閱 天氣 [城市]\``,
         `**取消訂閱** — \`${prefix}取消訂閱 天氣\``,
         `**延遲測試** — \`${prefix}ping\``,
@@ -53,8 +53,8 @@ function buildHelpSelectMenu() {
     .setPlaceholder("選擇要執行的功能...")
     .addOptions(
       new StringSelectMenuOptionBuilder()
-        .setLabel("即時天氣查詢")
-        .setDescription("輸入城市後立即顯示預報")
+        .setLabel("明日天氣查詢")
+        .setDescription("輸入城市後顯示明日預報")
         .setEmoji("🌦️")
         .setValue("weather"),
       new StringSelectMenuOptionBuilder()

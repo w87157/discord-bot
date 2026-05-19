@@ -24,7 +24,7 @@ module.exports = async (interaction) => {
       return interaction.showModal(
         buildCityModal(
           "help_weather_modal",
-          "即時天氣查詢",
+          "明日天氣查詢",
           `留空則使用 ${config.weather.defaultCity}`,
         ),
       );
@@ -80,7 +80,7 @@ module.exports = async (interaction) => {
       await interaction.deferReply(EPHEMERAL);
 
       try {
-        const data = await getWeather(city);
+        const data = await getWeather(city, { dayOffset: 1 });
         if (!data) {
           return interaction.editReply(
             `找不到「${city}」的天氣資訊，請確認城市名稱。`,

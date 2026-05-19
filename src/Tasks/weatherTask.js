@@ -53,7 +53,7 @@ const sendWeatherReports = async (client) => {
               { name: "\u200B", value: "\u200B", inline: true },
             )
             .setFooter({
-              text: `${data.dateLabel} 全日預報`,
+              text: `${data.dateLabel} ${data.dayLabel}全日預報`,
             });
 
           const sentMsg = await channel.send({
