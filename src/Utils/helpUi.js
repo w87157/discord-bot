@@ -3,11 +3,11 @@ const {
   ActionRowBuilder,
   StringSelectMenuBuilder,
   StringSelectMenuOptionBuilder,
-  ModalBuilder,
-  TextInputBuilder,
-  TextInputStyle,
 } = require("discord.js");
 const config = require("../../config");
+const { CITIES } = require("./helper");
+
+const CITY_BACK_VALUE = "__back__";
 
 function formatScheduleTime(cron) {
   const parts = cron.trim().split(/\s+/);
@@ -43,21 +43,15 @@ function buildHelpEmbed() {
       name: "📅 定時推送",
       value: `每日 **${scheduleTime}**（${config.weather.timezone}）`,
     })
-    .setFooter({ text: "選單內「查詢／訂閱」會彈出視窗輸入城市" })
+    .setFooter({ text: "查詢／訂閱時請從下拉選單選擇城市" })
     .setTimestamp();
 }
 
-function buildHelpActionRow() {
-  return new ActionRowBuilder().addComponents(buildHelpSelectMenu());
-}
-
-function buildHelpComponents() {
-  return [buildHelpActionRow()];
-}
-
-/** 重設選單未選狀態，讓使用者可再次點選相同項目 */
-async function resetHelpSelectMenu(message) {
-  await message.edit({ components: buildHelpComponents() });
+function buildCitySelectEmbed(title) {
+  return new EmbedBuilder()
+    .setColor(0x3498db)
+    .setTitle(title)
+    .setDescription("請從下方選單選擇縣市。");
 }
 
 function buildHelpSelectMenu() {
@@ -67,12 +61,12 @@ function buildHelpSelectMenu() {
     .addOptions(
       new StringSelectMenuOptionBuilder()
         .setLabel("明日天氣查詢")
-        .setDescription("輸入城市後顯示明日預報")
+        .setDescription("選擇城市後顯示明日預報")
         .setEmoji("🌦️")
         .setValue("weather"),
       new StringSelectMenuOptionBuilder()
         .setLabel("訂閱每日預報")
-        .setDescription("在此頻道開啟每日自動推送")
+        .setDescription("選擇城市後開啟每日自動推送")
         .setEmoji("🔔")
         .setValue("subscribe"),
       new StringSelectMenuOptionBuilder()
@@ -88,26 +82,51 @@ function buildHelpSelectMenu() {
     );
 }
 
-function buildCityModal(customId, title, placeholder) {
-  const cityInput = new TextInputBuilder()
-    .setCustomId("city")
-    .setLabel("城市名稱")
-    .setPlaceholder(placeholder)
-    .setStyle(TextInputStyle.Short)
-    .setRequired(false)
-    .setMaxLength(20);
+function buildHelpActionRow() {
+  return new ActionRowBuilder().addComponents(buildHelpSelectMenu());
+}
 
-  return new ModalBuilder()
-    .setCustomId(customId)
-    .setTitle(title)
-    .addComponents(new ActionRowBuilder().addComponents(cityInput));
+function buildHelpComponents() {
+  return [buildHelpActionRow()];
+}
+
+function buildCitySelectMenu(action) {
+  const options = [
+    new StringSelectMenuOptionBuilder()
+      .setLabel("← 返回功能選單")
+      .setValue(CITY_BACK_VALUE),
+    ...CITIES.map((city) =>
+      new StringSelectMenuOptionBuilder().setLabel(city).setValue(city),
+    ),
+  ];
+
+  return new StringSelectMenuBuilder()
+    .setCustomId(`help_city_${action}`)
+    .setPlaceholder("請選擇縣市...")
+    .addOptions(options);
+}
+
+function buildCitySelectComponents(action) {
+  return [
+    new ActionRowBuilder().addComponents(buildCitySelectMenu(action)),
+  ];
+}
+
+/** 重設選單未選狀態，讓使用者可再次點選相同項目 */
+async function resetHelpSelectMenu(message) {
+  await message.edit({
+    embeds: [buildHelpEmbed()],
+    components: buildHelpComponents(),
+  });
 }
 
 module.exports = {
+  CITY_BACK_VALUE,
   formatScheduleTime,
   buildHelpEmbed,
+  buildCitySelectEmbed,
   buildHelpSelectMenu,
   buildHelpComponents,
+  buildCitySelectComponents,
   resetHelpSelectMenu,
-  buildCityModal,
 };
