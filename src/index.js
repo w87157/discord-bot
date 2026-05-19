@@ -26,12 +26,14 @@ client.commands = new Collection();
 const pingCommand = require("./Commands/ping");
 const weatherCommand = require("./Commands/weather");
 const subscribeCommand = require("./Commands/subscribe");
+const unsubscribeCommand = require("./Commands/unsubscribe");
 const helpCommand = require("./Commands/help");
 
 // 註冊指令
 client.commands.set(pingCommand.name, pingCommand);
 client.commands.set(weatherCommand.name, weatherCommand);
 client.commands.set(subscribeCommand.name, subscribeCommand);
+client.commands.set(unsubscribeCommand.name, unsubscribeCommand);
 client.commands.set(helpCommand.name, helpCommand);
 
 // --- 註冊事件監聽 ---

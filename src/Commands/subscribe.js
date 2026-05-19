@@ -1,5 +1,6 @@
-const supabase = require("../Services/supabase");
-const { formatCityName } = require("../Utils/helper");
+const config = require("../../config");
+const { subscribeWeather } = require("../Services/subscriptionService");
+const { formatScheduleTime } = require("../Utils/helpUi");
 
 module.exports = {
   name: "訂閱",
@@ -12,30 +13,20 @@ module.exports = {
       return message.reply("❌ 指令格式錯誤。請使用：`!訂閱 天氣 [城市名稱]`");
     }
 
-    const city = formatCityName(cityName);
-    const guildId = message.guild?.id || "DM"; // 如果是私訊則紀錄為 DM
-    const guildName = message.guild?.name || "私訊";
-    const channelId = message.channel.id;
-    const userId = message.author.id;
-    const userName = message.author.username;
-
     try {
-      const { error } = await supabase.from("weather_subscriptions").upsert(
-        {
-          guild_id: guildId,
-          guild_name: guildName,
-          channel_id: channelId,
-          user_id: userId,
-          user_name: userName,
-          city: city,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: "channel_id,user_id" },
-      ); // 根據這兩個欄位判斷是否重複
+      const { city } = await subscribeWeather({
+        guildId: message.guild?.id || "DM",
+        guildName: message.guild?.name || "私訊",
+        channelId: message.channel.id,
+        userId: message.author.id,
+        userName: message.author.username,
+        cityName,
+      });
 
-      if (error) throw error;
-
-      await message.reply(`✅ 訂閱成功！`);
+      const scheduleTime = formatScheduleTime(config.weather.schedule);
+      await message.reply(
+        `✅ 已訂閱 **${city}** 的每日預報！\n將於每日 **${scheduleTime}**（${config.weather.timezone}）推送到此頻道。`,
+      );
     } catch (error) {
       console.error("訂閱錯誤:", error);
       await message.reply("❌ 訂閱失敗。");
