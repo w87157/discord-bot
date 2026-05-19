@@ -7,7 +7,11 @@ const {
 } = require("../Services/subscriptionService");
 const { formatCityName } = require("../Utils/helper");
 const { buildWeatherEmbed } = require("../Utils/weatherEmbed");
-const { buildCityModal, formatScheduleTime } = require("../Utils/helpUi");
+const {
+  buildCityModal,
+  formatScheduleTime,
+  resetHelpSelectMenu,
+} = require("../Utils/helpUi");
 
 const EPHEMERAL = { flags: [MessageFlags.Ephemeral] };
 
@@ -16,28 +20,40 @@ function resolveCity(raw) {
   return formatCityName(trimmed || config.weather.defaultCity);
 }
 
+async function resetHelpMenu(interaction) {
+  try {
+    await resetHelpSelectMenu(interaction.message);
+  } catch (error) {
+    console.error("重設指令選單失敗:", error);
+  }
+}
+
 module.exports = async (interaction) => {
   if (interaction.isStringSelectMenu() && interaction.customId === "help_menu") {
     const selected = interaction.values[0];
 
     if (selected === "weather") {
-      return interaction.showModal(
+      await interaction.showModal(
         buildCityModal(
           "help_weather_modal",
           "明日天氣查詢",
           `留空則使用 ${config.weather.defaultCity}`,
         ),
       );
+      await resetHelpMenu(interaction);
+      return;
     }
 
     if (selected === "subscribe") {
-      return interaction.showModal(
+      await interaction.showModal(
         buildCityModal(
           "help_subscribe_modal",
           "訂閱每日預報",
           "例如：高雄、臺北",
         ),
       );
+      await resetHelpMenu(interaction);
+      return;
     }
 
     if (selected === "unsubscribe") {
@@ -50,24 +66,28 @@ module.exports = async (interaction) => {
         );
 
         if (!result.found) {
-          return interaction.editReply("❌ 你在此頻道沒有天氣訂閱。");
+          await interaction.editReply("❌ 你在此頻道沒有天氣訂閱。");
+        } else {
+          await interaction.editReply(
+            "✅ 已取消天氣訂閱，此頻道不再自動推送預報。",
+          );
         }
-
-        return interaction.editReply(
-          "✅ 已取消天氣訂閱，此頻道不再自動推送預報。",
-        );
       } catch (error) {
         console.error("選單取消訂閱錯誤:", error);
-        return interaction.editReply("❌ 取消訂閱失敗。");
+        await interaction.editReply("❌ 取消訂閱失敗。");
       }
+
+      await resetHelpMenu(interaction);
+      return;
     }
 
     if (selected === "ping") {
       const pingTime = Date.now() - interaction.createdTimestamp;
-      return interaction.reply({
+      await interaction.reply({
         content: `🏓 Pong! (延遲: ${pingTime}ms)`,
         ...EPHEMERAL,
       });
+      await resetHelpMenu(interaction);
     }
   }
 

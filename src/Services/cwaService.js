@@ -60,6 +60,7 @@ function getDayLabel(targetDateStr) {
   if (targetDateStr === getTaipeiDateStr(1)) return "明日";
   return "";
 }
+
 function pickValues(slots) {
   return slots
     .map((s) => s?.parameter?.parameterName)

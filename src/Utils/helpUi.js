@@ -47,6 +47,19 @@ function buildHelpEmbed() {
     .setTimestamp();
 }
 
+function buildHelpActionRow() {
+  return new ActionRowBuilder().addComponents(buildHelpSelectMenu());
+}
+
+function buildHelpComponents() {
+  return [buildHelpActionRow()];
+}
+
+/** 重設選單未選狀態，讓使用者可再次點選相同項目 */
+async function resetHelpSelectMenu(message) {
+  await message.edit({ components: buildHelpComponents() });
+}
+
 function buildHelpSelectMenu() {
   return new StringSelectMenuBuilder()
     .setCustomId("help_menu")
@@ -94,5 +107,7 @@ module.exports = {
   formatScheduleTime,
   buildHelpEmbed,
   buildHelpSelectMenu,
+  buildHelpComponents,
+  resetHelpSelectMenu,
   buildCityModal,
 };
