@@ -1,8 +1,11 @@
+const { SlashCommandBuilder } = require("discord.js");
+
 module.exports = {
-  name: "ping",
-  description: "測試機器人延遲",
-  execute(message) {
-    const pingTime = Date.now() - message.createdTimestamp;
-    message.reply(`🏓 Pong! (延遲: ${pingTime}ms)`);
+  data: new SlashCommandBuilder()
+    .setName("ping")
+    .setDescription("測試機器人延遲"),
+
+  async execute(interaction) {
+    await interaction.reply("Pong! 🏓");
   },
 };

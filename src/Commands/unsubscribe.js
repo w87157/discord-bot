@@ -1,29 +1,36 @@
+const { SlashCommandBuilder, PermissionFlagsBits } = require("discord.js");
 const { unsubscribeWeather } = require("../Services/subscriptionService");
 
 module.exports = {
-  name: "取消訂閱",
-  description: "取消每日天氣預報訂閱",
-  async execute(message, args) {
-    const subType = args[0];
+  data: new SlashCommandBuilder()
+    .setName("unsubscribe")
+    .setDescription("取消本頻道的天氣預報訂閱")
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels),
 
-    if (subType !== "天氣") {
-      return message.reply("❌ 指令格式錯誤。請使用：`!取消訂閱 天氣`");
-    }
+  async execute(interaction) {
+    await interaction.deferReply();
 
     try {
+      // 傳入 channel 物件與觸發指令的使用者 ID
       const result = await unsubscribeWeather(
-        message.channel,
-        message.author.id,
+        interaction.channel,
+        interaction.user.id,
       );
 
-      if (!result.hasSub) {
-        return message.reply("❌ 你在此頻道沒有天氣訂閱。");
+      if (result.hasSub) {
+        await interaction.editReply(
+          "✅ **成功取消訂閱！**\n本頻道將不再收到定時天氣預報。",
+        );
+      } else {
+        await interaction.editReply(
+          "⚠️ 本頻道目前**沒有**任何由您設定的天氣預報訂閱紀錄。",
+        );
       }
-
-      await message.reply("✅ 已取消天氣訂閱，此頻道不再自動推送預報。");
     } catch (error) {
-      console.error("取消訂閱錯誤:", error);
-      await message.reply("❌ 取消訂閱失敗。");
+      console.error("[指令錯誤] unsubscribe:", error);
+      await interaction.editReply(
+        "❌ 取消訂閱時發生錯誤，請稍後再試或聯絡管理員。",
+      );
     }
   },
 };

@@ -1,35 +1,41 @@
-const config = require("../../config");
+const { SlashCommandBuilder, PermissionFlagsBits } = require("discord.js");
 const { subscribeWeather } = require("../Services/subscriptionService");
-const { formatScheduleTime } = require("../Utils/helpUi");
 
 module.exports = {
-  name: "訂閱",
-  description: "訂閱每日天氣預報",
-  async execute(message, args) {
-    const subType = args[0];
-    const cityName = args[1];
+  data: new SlashCommandBuilder()
+    .setName("subscribe")
+    .setDescription("訂閱每日天氣預報到此頻道")
+    .addStringOption((option) =>
+      option
+        .setName("city")
+        .setDescription("請輸入要訂閱的縣市名稱 (例如: 台北市)")
+        .setRequired(true),
+    )
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels),
 
-    if (subType !== "天氣" || !cityName) {
-      return message.reply("❌ 指令格式錯誤。請使用：`!訂閱 天氣 [城市名稱]`");
-    }
+  async execute(interaction) {
+    const city = interaction.options.getString("city");
+    await interaction.deferReply();
 
     try {
-      const { city } = await subscribeWeather({
-        guildId: message.guild?.id || "DM",
-        guildName: message.guild?.name || "私訊",
-        channelId: message.channel.id,
-        userId: message.author.id,
-        userName: message.author.username,
-        cityName,
+      // 傳入資料庫所需的物件欄位
+      await subscribeWeather({
+        guildId: interaction.guild.id,
+        guildName: interaction.guild.name,
+        channelId: interaction.channel.id,
+        userId: interaction.user.id,
+        userName: interaction.user.username,
+        cityName: city,
       });
 
-      const scheduleTime = formatScheduleTime(config.weather.schedule);
-      await message.reply(
-        `✅ 已訂閱 **${city}** 的每日預報！\n將於每日 **${scheduleTime}**（${config.weather.timezone}）推送到此頻道。`,
+      await interaction.editReply(
+        `✅ **訂閱成功！**\n本頻道將會定時收到 **${city}** 的天氣預報。`,
       );
     } catch (error) {
-      console.error("訂閱錯誤:", error);
-      await message.reply("❌ 訂閱失敗。");
+      console.error("[指令錯誤] subscribe:", error);
+      await interaction.editReply(
+        "❌ 設定訂閱時發生錯誤，請稍後再試或聯絡管理員。",
+      );
     }
   },
 };

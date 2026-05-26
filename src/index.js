@@ -1,13 +1,20 @@
 require("dotenv").config();
-const config = require("../config");
-const { Client, GatewayIntentBits, Collection } = require("discord.js");
+const fs = require("node:fs");
+const path = require("node:path");
+const { Client, Collection, GatewayIntentBits } = require("discord.js");
 const express = require("express");
 
-// 引入事件處理器
-const handleReady = require("./Events/ready");
-const handleMessage = require("./Events/messageCreate");
-const handleInteraction = require("./Events/interactionCreate");
+// ==========================================
+// 1. 初始化 Web 伺服器 (防止免費託管平台休眠)
+// ==========================================
+const app = express();
+const port = process.env.PORT || 3000;
+app.get("/", (req, res) => res.send("天氣機器人運作中！🤖"));
+app.listen(port, () => console.log(`[系統] 網頁伺服器已啟動於 port ${port}`));
 
+// ==========================================
+// 2. 建立 Discord Client
+// ==========================================
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -16,47 +23,64 @@ const client = new Client({
   ],
 });
 
-/**
- * 指令集初始化
- * 我們將指令放在 Collection 中，方便在其他檔案調用
- */
 client.commands = new Collection();
 
-// 指令檔案
-const pingCommand = require("./Commands/ping");
-const weatherCommand = require("./Commands/weather");
-const subscribeCommand = require("./Commands/subscribe");
-const unsubscribeCommand = require("./Commands/unsubscribe");
-const helpCommand = require("./Commands/help");
+// ==========================================
+// 3. 動態載入 Commands (斜線指令)
+// ==========================================
+const commandsPath = path.join(__dirname, "Commands");
+// 讀取 Commands 資料夾內所有 .js 結尾的檔案
+const commandFiles = fs
+  .readdirSync(commandsPath)
+  .filter((file) => file.endsWith(".js"));
 
-// 註冊指令
-client.commands.set(pingCommand.name, pingCommand);
-client.commands.set(weatherCommand.name, weatherCommand);
-client.commands.set(subscribeCommand.name, subscribeCommand);
-client.commands.set(unsubscribeCommand.name, unsubscribeCommand);
-client.commands.set(helpCommand.name, helpCommand);
+for (const file of commandFiles) {
+  const filePath = path.join(commandsPath, file);
+  const command = require(filePath);
 
-// --- 註冊事件監聽 ---
-client.once("clientReady", () => {
-  handleReady(client);
+  // 檢查指令檔案是否具備必要的 'data' 與 'execute' 屬性
+  if ("data" in command && "execute" in command) {
+    client.commands.set(command.data.name, command);
+  } else {
+    console.log(
+      `[警告] 檔案 ${filePath} 缺少 'data' 或 'execute' 屬性，無法載入為斜線指令。`,
+    );
+  }
+}
+console.log(`[系統] 成功載入 ${client.commands.size} 個指令。`);
+
+// ==========================================
+// 4. 動態載入 Events (事件監聽)
+// ==========================================
+const eventsPath = path.join(__dirname, "Events");
+// 讀取 Events 資料夾內所有 .js 結尾的檔案
+const eventFiles = fs
+  .readdirSync(eventsPath)
+  .filter((file) => file.endsWith(".js"));
+
+for (const file of eventFiles) {
+  const filePath = path.join(eventsPath, file);
+  const event = require(filePath);
+
+  // 根據 event.once 判斷是使用 client.once 還是 client.on
+  if (event.once) {
+    client.once(event.name, (...args) => event.execute(...args, client));
+  } else {
+    client.on(event.name, (...args) => event.execute(...args, client));
+  }
+}
+console.log(`[系統] 成功載入 ${eventFiles.length} 個事件。`);
+
+// ==========================================
+// 5. 機器人登入
+// ==========================================
+const token = process.env.DISCORD_TOKEN;
+
+if (!token) {
+  console.error("[錯誤] 找不到 DISCORD_TOKEN，請確認環境變數設定。");
+  process.exit(1);
+}
+
+client.login(token).catch((err) => {
+  console.error("[錯誤] 機器人登入失敗：", err);
 });
-
-client.on("messageCreate", (message) => {
-  handleMessage(message, client);
-});
-
-client.on("interactionCreate", (interaction) => {
-  handleInteraction(interaction, client);
-});
-
-// --- Express 伺服器 (防止 Bot 休眠) ---
-const app = express();
-app.get("/", (req, res) => res.send("Bot 運作中！"));
-
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`[System] Express 伺服器已啟動於連接埠 ${PORT}`);
-});
-
-// 登入 Bot
-client.login(process.env.DISCORD_TOKEN);

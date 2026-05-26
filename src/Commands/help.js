@@ -1,15 +1,31 @@
-const {
-  buildHelpEmbed,
-  buildHelpComponents,
-} = require("../Utils/helpUi");
+const { SlashCommandBuilder } = require("discord.js");
+const helpUi = require("../Utils/helpUi"); // 引入你的 UI 工具
 
 module.exports = {
-  name: "指令",
-  description: "顯示指令總表選單",
-  async execute(message) {
-    await message.reply({
-      embeds: [buildHelpEmbed()],
-      components: buildHelpComponents(),
-    });
+  data: new SlashCommandBuilder()
+    .setName("help")
+    .setDescription("查看機器人的功能清單與指令教學"),
+
+  async execute(interaction) {
+    try {
+      // 假設 helpUi.js 內有匯出一個生成 Embed 的函式 (例如 generateHelpEmbed)
+      // 請根據你 helpUi.js 實際寫的函式名稱做修改
+      const embedMessage = helpUi.generateHelpEmbed();
+
+      // 發送 Embed 回覆
+      await interaction.reply({ embeds: [embedMessage] });
+    } catch (error) {
+      console.error("[指令錯誤] help:", error);
+
+      // 如果 helpUi.js 發生問題，提供備用的純文字說明
+      const fallbackText =
+        `📖 **天氣機器人指令選單**\n\n` +
+        `\`/weather [縣市]\` - 查詢特定縣市的即時天氣\n` +
+        `\`/subscribe [縣市]\` - 在此頻道訂閱每日天氣預報 (限管理員)\n` +
+        `\`/unsubscribe\` - 取消本頻道的訂閱 (限管理員)\n` +
+        `\`/ping\` - 檢查機器人連線延遲`;
+
+      await interaction.reply({ content: fallbackText, ephemeral: true });
+    }
   },
 };
