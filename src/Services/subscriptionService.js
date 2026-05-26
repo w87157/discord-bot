@@ -29,15 +29,15 @@ async function subscribeWeather({
 }
 
 async function unsubscribeWeather(channel, userId) {
-  const { data: existing, error: fetchError } = await supabase
+  const { data: existing, error: fetchErr } = await supabase
     .from("weather_subscriptions")
     .select("last_message_id")
     .eq("channel_id", channel.id)
     .eq("user_id", userId)
     .maybeSingle();
 
-  if (fetchError) throw fetchError;
-  if (!existing) return { found: false };
+  if (fetchErr) throw fetchErr;
+  if (!existing) return { hasSub: false };
 
   if (existing.last_message_id) {
     try {
@@ -55,7 +55,7 @@ async function unsubscribeWeather(channel, userId) {
     .eq("user_id", userId);
 
   if (error) throw error;
-  return { found: true };
+  return { hasSub: true };
 }
 
 module.exports = { subscribeWeather, unsubscribeWeather };

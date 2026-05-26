@@ -4,9 +4,9 @@ const { Client, GatewayIntentBits, Collection } = require("discord.js");
 const express = require("express");
 
 // 引入事件處理器
-const readyEvent = require("./Events/ready");
-const messageEvent = require("./Events/messageCreate");
-const interactionEvent = require("./Events/interactionCreate");
+const handleReady = require("./Events/ready");
+const handleMessage = require("./Events/messageCreate");
+const handleInteraction = require("./Events/interactionCreate");
 
 const client = new Client({
   intents: [
@@ -38,15 +38,15 @@ client.commands.set(helpCommand.name, helpCommand);
 
 // --- 註冊事件監聽 ---
 client.once("clientReady", () => {
-  readyEvent(client);
+  handleReady(client);
 });
 
 client.on("messageCreate", (message) => {
-  messageEvent(message, client);
+  handleMessage(message, client);
 });
 
 client.on("interactionCreate", (interaction) => {
-  interactionEvent(interaction, client);
+  handleInteraction(interaction, client);
 });
 
 // --- Express 伺服器 (防止 Bot 休眠) ---

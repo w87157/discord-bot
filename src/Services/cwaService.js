@@ -48,11 +48,11 @@ function getSlotsForDateStr(timeArray, dateStr) {
  * 查詢今日時，若 API 已無今日時段（常見於傍晚後資料更新），
  * 改採回傳資料中最早一天的時段，避免啟動推播出現「無資料」。
  */
-function resolveTargetDateStr(wxArray, dayOffset) {
+function resolveTargetDateStr(wxSlots, dayOffset) {
   const targetStr = getTaipeiDateStr(dayOffset);
-  if (getSlotsForDateStr(wxArray, targetStr).length > 0) return targetStr;
-  if (dayOffset !== 0 || wxArray.length === 0) return targetStr;
-  return getSlotDateStr(wxArray[0].startTime);
+  if (getSlotsForDateStr(wxSlots, targetStr).length > 0) return targetStr;
+  if (dayOffset !== 0 || wxSlots.length === 0) return targetStr;
+  return getSlotDateStr(wxSlots[0].startTime);
 }
 
 function getDayLabel(targetDateStr) {
@@ -63,15 +63,15 @@ function getDayLabel(targetDateStr) {
 
 function pickValues(slots) {
   return slots
-    .map((s) => s?.parameter?.parameterName)
-    .filter((v) => v !== undefined && v !== null);
+    .map((slot) => slot?.parameter?.parameterName)
+    .filter((val) => val !== undefined && val !== null);
 }
 
 /**
  * @param {string} locationName
  * @param {{ dayOffset?: number }} [options] dayOffset: 0 = 今天，1 = 明天
  */
-async function getWeather(locationName, options = {}) {
+async function fetchWeather(locationName, options = {}) {
   const { dayOffset = 0 } = options;
   const city = formatCityName(locationName);
   const base = "https://opendata.cwa.gov.tw/api/v1/rest/datastore/F-C0032-001";
@@ -86,38 +86,31 @@ async function getWeather(locationName, options = {}) {
     const loc = json?.records?.location?.[0];
     if (!loc) return null;
 
-    // 將各要素整理成 map
-    const map = {};
+    const elMap = {};
     for (const el of loc.weatherElement || []) {
-      map[el.elementName] = el.time || [];
+      elMap[el.elementName] = el.time || [];
     }
 
-    const wxArray = map["Wx"] || [];
-    const targetDateStr = resolveTargetDateStr(wxArray, dayOffset);
+    const wxSlots = elMap["Wx"] || [];
+    const targetDateStr = resolveTargetDateStr(wxSlots, dayOffset);
 
-    const wxSlots = getSlotsForDateStr(wxArray, targetDateStr);
-    const popSlots = getSlotsForDateStr(map["PoP"] || [], targetDateStr);
-    const minTSlots = getSlotsForDateStr(map["MinT"] || [], targetDateStr);
-    const maxTSlots = getSlotsForDateStr(map["MaxT"] || [], targetDateStr);
-    const ciSlots = getSlotsForDateStr(map["CI"] || [], targetDateStr);
+    const wxDaySlots = getSlotsForDateStr(wxSlots, targetDateStr);
+    const popSlots = getSlotsForDateStr(elMap["PoP"] || [], targetDateStr);
+    const minTSlots = getSlotsForDateStr(elMap["MinT"] || [], targetDateStr);
+    const maxTSlots = getSlotsForDateStr(elMap["MaxT"] || [], targetDateStr);
+    const ciSlots = getSlotsForDateStr(elMap["CI"] || [], targetDateStr);
 
-    // MinT：該日所有時段最低溫
     const minTValues = pickValues(minTSlots).map(Number);
-    const MinT = minTValues.length ? Math.min(...minTValues) : "無資料";
+    const minT = minTValues.length ? Math.min(...minTValues) : "無資料";
 
-    // MaxT：該日所有時段最高溫
     const maxTValues = pickValues(maxTSlots).map(Number);
-    const MaxT = maxTValues.length ? Math.max(...maxTValues) : "無資料";
+    const maxT = maxTValues.length ? Math.max(...maxTValues) : "無資料";
 
-    // PoP：該日所有時段最大降雨機率
     const popValues = pickValues(popSlots).map(Number);
-    const PoP = popValues.length ? Math.max(...popValues) : "無資料";
+    const pop = popValues.length ? Math.max(...popValues) : "無資料";
 
-    // Wx：取該日第一個時段的天氣狀態描述（最具代表性）
-    const Wx = wxSlots[0]?.parameter?.parameterName ?? "無資料";
-
-    // CI：取該日第一個時段的舒適度
-    const CI = ciSlots[0]?.parameter?.parameterName ?? "無資料";
+    const wx = wxDaySlots[0]?.parameter?.parameterName ?? "無資料";
+    const ci = ciSlots[0]?.parameter?.parameterName ?? "無資料";
 
     const labelDate = parseCwaTime(
       `${targetDateStr}T12:00:00`,
@@ -129,13 +122,12 @@ async function getWeather(locationName, options = {}) {
 
     return {
       location: loc.locationName,
-      Wx,
-      PoP,
-      MinT,
-      MaxT,
-      CI,
-      dateLabel: labelDate, // 例如「5月20日」
-      // 定時推播（dayOffset=0）固定標示「今日」；手動查明日則依實際日期標示
+      wx,
+      pop,
+      minT,
+      maxT,
+      ci,
+      dateLabel: labelDate,
       dayLabel:
         dayOffset === 0 ? "今日" : getDayLabel(targetDateStr) || "明日",
     };
@@ -145,4 +137,4 @@ async function getWeather(locationName, options = {}) {
   }
 }
 
-module.exports = { getWeather };
+module.exports = { fetchWeather };

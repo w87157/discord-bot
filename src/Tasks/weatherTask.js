@@ -1,7 +1,7 @@
 const cron = require("node-cron");
 const config = require("../../config");
 const { EmbedBuilder } = require("discord.js");
-const { getWeather } = require("../Services/cwaService");
+const { fetchWeather } = require("../Services/cwaService");
 const supabase = require("../Services/supabase");
 
 const sendWeatherReports = async (client) => {
@@ -19,7 +19,7 @@ const sendWeatherReports = async (client) => {
     }
 
     for (const sub of subs) {
-      const data = await getWeather(sub.city);
+      const data = await fetchWeather(sub.city);
       if (!data) {
         console.error(`無法獲取城市天氣: ${sub.city}`);
         continue;
@@ -43,13 +43,13 @@ const sendWeatherReports = async (client) => {
             .addFields(
               {
                 name: "🌡️ 溫度範圍",
-                value: `${data.MinT}°C ~ ${data.MaxT}°C`,
+                value: `${data.minT}°C ~ ${data.maxT}°C`,
                 inline: true,
               },
-              { name: "☔ 降雨機率", value: `${data.PoP}%`, inline: true },
+              { name: "☔ 降雨機率", value: `${data.pop}%`, inline: true },
               { name: "\u200B", value: "\u200B", inline: true },
-              { name: "☁️ 天氣狀態", value: data.Wx, inline: true },
-              { name: "🏃 舒適度評估", value: data.CI, inline: true },
+              { name: "☁️ 天氣狀態", value: data.wx, inline: true },
+              { name: "🏃 舒適度評估", value: data.ci, inline: true },
               { name: "\u200B", value: "\u200B", inline: true },
             )
             .setFooter({
@@ -75,10 +75,8 @@ const sendWeatherReports = async (client) => {
 };
 
 module.exports = (client) => {
-  // 啟動時立即執行一次
   sendWeatherReports(client);
 
-  // 依照 config 設定的時間執行 (預設 06:00)
   cron.schedule(
     config.weather.schedule,
     async () => {

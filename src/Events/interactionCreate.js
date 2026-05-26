@@ -1,6 +1,6 @@
 const { MessageFlags } = require("discord.js");
 const config = require("../../config");
-const { getWeather } = require("../Services/cwaService");
+const { fetchWeather } = require("../Services/cwaService");
 const {
   subscribeWeather,
   unsubscribeWeather,
@@ -56,7 +56,7 @@ module.exports = async (interaction) => {
           interaction.user.id,
         );
 
-        if (!result.found) {
+        if (!result.hasSub) {
           await interaction.editReply("❌ 你在此頻道沒有天氣訂閱。");
         } else {
           await interaction.editReply(
@@ -103,7 +103,7 @@ module.exports = async (interaction) => {
       await interaction.deferReply(EPHEMERAL);
 
       try {
-        const data = await getWeather(city, { dayOffset: 1 });
+        const data = await fetchWeather(city, { dayOffset: 1 });
         if (!data) {
           await interaction.editReply(
             `找不到「${city}」的天氣資訊，請確認城市名稱。`,
@@ -124,7 +124,7 @@ module.exports = async (interaction) => {
       await interaction.deferReply(EPHEMERAL);
 
       try {
-        const { city: subscribedCity } = await subscribeWeather({
+        const { city: subCity } = await subscribeWeather({
           guildId: interaction.guild?.id || "DM",
           guildName: interaction.guild?.name || "私訊",
           channelId: interaction.channel.id,
@@ -136,7 +136,7 @@ module.exports = async (interaction) => {
         const scheduleTime = formatScheduleTime(config.weather.schedule);
 
         await interaction.editReply(
-          `✅ 已訂閱 **${subscribedCity}** 的每日預報！\n將於每日 **${scheduleTime}**（${config.weather.timezone}）推送到此頻道。`,
+          `✅ 已訂閱 **${subCity}** 的每日預報！\n將於每日 **${scheduleTime}**（${config.weather.timezone}）推送到此頻道。`,
         );
       } catch (error) {
         console.error("選單訂閱錯誤:", error);

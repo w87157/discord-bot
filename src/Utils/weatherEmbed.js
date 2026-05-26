@@ -7,11 +7,11 @@ function buildWeatherEmbed(data) {
     .addFields(
       {
         name: "溫度",
-        value: `${data.MinT}°C ~ ${data.MaxT}°C`,
+        value: `${data.minT}°C ~ ${data.maxT}°C`,
         inline: true,
       },
-      { name: "降雨機率", value: `${data.PoP}%`, inline: true },
-      { name: "天氣狀態", value: data.Wx },
+      { name: "降雨機率", value: `${data.pop}%`, inline: true },
+      { name: "天氣狀態", value: data.wx },
     )
     .setFooter({ text: `${data.dateLabel} ${data.dayLabel}全日預報` });
 }

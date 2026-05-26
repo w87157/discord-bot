@@ -16,7 +16,7 @@ module.exports = {
         message.author.id,
       );
 
-      if (!result.found) {
+      if (!result.hasSub) {
         return message.reply("❌ 你在此頻道沒有天氣訂閱。");
       }
 

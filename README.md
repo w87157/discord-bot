@@ -49,6 +49,109 @@ discord_bot/
         └── weatherEmbed.js   # 天氣 Embed 共用
 ```
 
+## 程式碼命名規範
+
+本專案採用下列 JavaScript 命名慣例，以利閱讀與維護。
+
+### 一、核心命名規則（Casing Rules）
+
+| 類型 | 命名風格 | 規則說明與範例 |
+| --- | --- | --- |
+| **變數** (Variables) | 小駝峰 `camelCase` | 使用名詞。例：`let userName = "Alice";` |
+| **函式** (Functions) | 小駝峰 `camelCase` | 以動詞開頭。例：`function calculateTotal() {}` |
+| **類別** (Classes) | 大駝峰 `PascalCase` | 首字母大寫，使用名詞。例：`class ShoppingCart {}` |
+| **全域／固定常數** (Constants) | 大寫蛇形 `SCREAMING_SNAKE_CASE` | 程式中不會改變的設定值或魔術數字。例：`const MAX_LOGIN_ATTEMPTS = 3;` |
+
+> **補充：** 雖然 JS 中宣告變數時建議優先使用 `const`（值會變動才用 `let`），但只有「全域的、寫死的配置參數」才使用全大寫蛇形命名。若為程式運算產生的 `const`，仍用小駝峰即可，例如：`const calculatedPrice = basePrice * tax;`。
+
+### 二、常見實戰命名慣例
+
+#### 1. 布林值 (Booleans)
+
+型別轉換頻繁，布林值命名應一眼可辨：
+
+| 前綴 | 範例 |
+| --- | --- |
+| `is` + 形容詞／狀態 | `isVisible`, `isValid`, `isFetching` |
+| `has` + 名詞／狀態 | `hasError`, `hasChildren`, `hasSub` |
+| `should` + 動詞 | `shouldUpdate`, `shouldRender` |
+
+#### 2. 事件處理器 (Event Handlers)
+
+| 用途 | 命名 | 範例 |
+| --- | --- | --- |
+| 綁定事件的屬性 (Props) | `on` 開頭 | `onClick`, `onSubmit`, `onChange` |
+| 處理事件的函式 | `handle` 開頭 | `handleClick`, `handleSubmit`, `handleChange` |
+
+```jsx
+<button onClick={handleClick}>提交</button>
+```
+
+#### 3. 私有變數或方法
+
+傳統上以底線 `_` 表示內部使用、勿在外部直接呼叫，例如：`this._internalState = null;`
+
+> ES2022 起支援 `#` 私有欄位（如 `#internalState`），底線慣例在舊專案中仍常見。
+
+#### 4. 取得、設定與請求資料
+
+| 動詞 | 用途 | 範例 |
+| --- | --- | --- |
+| `get...` | 取得內部資料 | `getUserName()` |
+| `set...` | 設定／更新內部資料 | `setUserName('Bob')` |
+| `fetch...` | 向後端 API 非同步請求 | `fetchUserData()` |
+
+#### 5. 陣列方法的 callback 參數
+
+陣列用**複數**，callback 內單一元素用對應**單數**：
+
+```javascript
+const users = ['Alice', 'Bob', 'Charlie'];
+
+users.forEach((user) => {
+  console.log(user);
+});
+```
+
+#### 6. 名稱過長時的簡寫
+
+在**不影響可讀性**的前提下，若完整單字造成程式過長（例如迴圈內、短函式、同一區塊反覆出現），可使用**約定俗成的簡寫**，仍維持小駝峰：
+
+| 完整詞 | 簡寫 | 範例 |
+| --- | --- | --- |
+| subscription | `sub` | `subs`、`subType` |
+| message | `msg` | `oldMsg`、`sentMsg` |
+| response | `res` | `const res = await fetch(...)` |
+| location | `loc` | `loc.locationName` |
+| element | `el` | `elMap` |
+| error | `err` | `catch (err)` |
+| parameter / 參數值 | `val` | `.filter((val) => ...)` |
+
+規則：
+
+- **布林前綴仍保留**：`hasSub`（勿寫成 `sub` 當布林用）。
+- **函式名稱**盡量用完整動詞（如 `fetchWeather`）；簡寫主要用在**區域變數**與**callback 參數**。
+- **避免過度簡寫**：`s`、`d`、`x` 等單字母僅在極短 callback 且型別明確時使用；優先 `sub`、`msg`、`err`。
+- **對外 API／匯出介面**（`module.exports`、回傳物件屬性）優先完整命名；內部實作才簡寫。
+
+```javascript
+const { data: subs } = await supabase.from("weather_subscriptions").select("*");
+
+for (const sub of subs) {
+  const data = await fetchWeather(sub.city);
+  if (!data) continue;
+  // ...
+}
+```
+
+### 三、應避開的命名地雷
+
+| 項目 | 說明 |
+| --- | --- |
+| **保留字與關鍵字** | 勿使用 `class`, `function`, `let`, `const`, `return`, `default` 等作為變數名 |
+| **匈牙利命名法** | 勿在變數名寫入型別前綴（如 `strName`, `arrUsers`）；`name` 與 `users` 已足夠 |
+| **DOM 元素** | 可加上 `El`／`Node` 後綴或 `$` 前綴以區分一般變數，例：`const submitBtnEl = document.getElementById('submit');` |
+
 ## 環境需求
 
 - Node.js（建議與本機開發環境相符的版本；專案使用 `fetch`，需 Node 18+ 或已內建 `fetch` 的執行環境）
