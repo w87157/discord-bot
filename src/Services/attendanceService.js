@@ -98,15 +98,15 @@ async function autoClaimFunction() {
   let result = { name: accountName, success: false, status: "", rewards: "" };
 
   try {
-    const response = await axios.post(ATTENDANCE_URL, "", {
-      headers,
-      validateStatus: function (status) {
-        return status >= 200 && status < 500;
-      },
+    const response = await axios({
+      method: "post",
+      url: ATTENDANCE_URL,
+      headers: headers,
+      validateStatus: () => true,
     });
 
     const responseJson = response.data;
-    console.log(`[${accountName}] API 回傳 Code: ${responseJson.code}`);
+    console.log(`[${accountName}] API 回傳資料:`, responseJson);
 
     if (responseJson.code === 0) {
       // 檢查是否真的有拿到獎勵資料
@@ -128,13 +128,12 @@ async function autoClaimFunction() {
           })
           .join("\n");
       } else {
-        // Code 為 0 但沒有獎勵，代表今天稍早已經簽到過了
+        // Code 為 0 但沒有獎勵，代表今天已經簽到過了
         result.success = true;
         result.status = "👌 今天已經簽到過囉";
         result.rewards = "無新獎勵";
       }
     } else if (responseJson.code === 10001) {
-      // 保留原本的 10001 判斷，以防官方 API 又改回來
       result.success = true;
       result.status = "👌 今天已經簽到過囉";
       result.rewards = "無新獎勵";
