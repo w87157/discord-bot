@@ -1,12 +1,13 @@
-const setupAttendanceTask = require("../Tasks/attendanceTask");
 const weatherTask = require("../Tasks/weatherTask");
+const attendanceTask = require("../Tasks/attendanceTask");
 
-module.exports = (client) => {
-  console.log(`✅ ${client.user.tag} 已就緒！`);
-
-  // 啟動簽到排程
-  setupAttendanceTask(client);
-
-  // 註冊排程任務
-  weatherTask(client);
+module.exports = {
+  name: "ready",
+  once: true,
+  execute(client) {
+    console.log(`[系統] 機器人已上線：${client.user.tag}`);
+    // 啟動定時任務
+    weatherTask(client);
+    attendanceTask(client);
+  },
 };
