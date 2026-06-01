@@ -1,21 +1,30 @@
 require("dotenv").config();
-const fs = require("node:fs");
-const path = require("node:path");
-const { Client, Collection, GatewayIntentBits } = require("discord.js");
-const express = require("express");
+const fs = require("fs");
+const path = require("path");
+const { Client, GatewayIntentBits, Collection } = require("discord.js");
 const logger = require("./Utils/logger");
 
-// ==========================================
-// ## 初始化 Web 伺服器 (防止免費託管平台休眠)
-// ==========================================
-const app = express();
-const port = process.env.PORT || 3000;
-app.get("/", (req, res) => res.send("天氣機器人運作中！🤖"));
-app.listen(port, () => console.log(`[系統] 網頁伺服器已啟動於 port ${port}`));
+// 1. 全域錯誤捕捉 (避免機器人因未捕捉的例外而崩潰閃退)
+process.on("unhandledRejection", (reason, promise) => {
+  logger.error(
+    `[系統] 未捕捉的 Promise 拒絕 (Unhandled Rejection): ${reason.stack || reason}`,
+  );
+});
 
-// ==========================================
-// ## 建立 Discord Client
-// ==========================================
+process.on("uncaughtException", (error) => {
+  logger.error(
+    `[系統] 未捕捉的例外錯誤 (Uncaught Exception): ${error.stack || error.message}`,
+  );
+});
+
+process.on("uncaughtExceptionMonitor", (error, origin) => {
+  logger.error(
+    `[系統] 未捕捉的例外監控 (Uncaught Exception Monitor): ${error.stack || error.message} (來源: ${origin})`,
+  );
+});
+
+// 2. 初始化 Discord 客戶端
+logger.info("[Core] 正在初始化 Discord 客戶端...");
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -26,73 +35,78 @@ const client = new Client({
 
 client.commands = new Collection();
 
-// ==========================================
-// ## 動態載入 Commands (斜線指令)
-// ==========================================
+// 3. 動態載入 Commands
 const commandsPath = path.join(__dirname, "Commands");
-// 讀取 Commands 資料夾內所有 .js 結尾的檔案
-const commandFiles = fs
-  .readdirSync(commandsPath)
-  .filter((file) => file.endsWith(".js"));
+if (fs.existsSync(commandsPath)) {
+  const commandFiles = fs
+    .readdirSync(commandsPath)
+    .filter((file) => file.endsWith(".js"));
 
-for (const file of commandFiles) {
-  const filePath = path.join(commandsPath, file);
-  const command = require(filePath);
-
-  // 檢查指令檔案是否具備必要的 'data' 與 'execute' 屬性
-  if ("data" in command && "execute" in command) {
-    client.commands.set(command.data.name, command);
-  } else {
-    console.log(
-      `[警告] 檔案 ${filePath} 缺少 'data' 或 'execute' 屬性，無法載入為斜線指令。`,
-    );
+  for (const file of commandFiles) {
+    const filePath = path.join(commandsPath, file);
+    try {
+      const command = require(filePath);
+      if ("data" in command && "execute" in command) {
+        client.commands.set(command.data.name, command);
+        logger.info(`[Core] 成功載入斜線指令: /${command.data.name}`);
+      } else if ("name" in command && "execute" in command) {
+        // 相容傳統文字指令寫法
+        client.commands.set(command.name, command);
+        logger.info(`[Core] 成功載入文字指令: ${command.name}`);
+      } else {
+        logger.warn(
+          `[Core] 指令檔案 ${file} 缺少必要的 "data/name" 或 "execute" 屬性。`,
+        );
+      }
+    } catch (err) {
+      logger.error(
+        `[Core] 載入指令檔案 ${file} 時發生錯誤: ${err.stack || err.message}`,
+      );
+    }
   }
+} else {
+  logger.warn("[Core] 找不到 Commands 資料夾，跳過指令載入。");
 }
-console.log(`[系統] 成功載入 ${client.commands.size} 個指令。`);
 
-// ==========================================
-// ## 動態載入 Events (事件監聽)
-// ==========================================
+// 4. 動態載入 Events
 const eventsPath = path.join(__dirname, "Events");
-// 讀取 Events 資料夾內所有 .js 結尾的檔案
-const eventFiles = fs
-  .readdirSync(eventsPath)
-  .filter((file) => file.endsWith(".js"));
+if (fs.existsSync(eventsPath)) {
+  const eventFiles = fs
+    .readdirSync(eventsPath)
+    .filter((file) => file.endsWith(".js"));
 
-for (const file of eventFiles) {
-  const filePath = path.join(eventsPath, file);
-  const event = require(filePath);
-
-  // 根據 event.once 判斷是使用 client.once 還是 client.on
-  if (event.once) {
-    client.once(event.name, (...args) => event.execute(...args, client));
-  } else {
-    client.on(event.name, (...args) => event.execute(...args, client));
+  for (const file of eventFiles) {
+    const filePath = path.join(eventsPath, file);
+    try {
+      const event = require(filePath);
+      if (event.once) {
+        client.once(event.name, (...args) => event.execute(...args, client));
+      } else {
+        client.on(event.name, (...args) => event.execute(...args, client));
+      }
+      logger.info(`[Core] 成功載入事件監聽器: ${event.name}`);
+    } catch (err) {
+      logger.error(
+        `[Core] 載入事件檔案 ${file} 時發生錯誤: ${err.stack || err.message}`,
+      );
+    }
   }
+} else {
+  logger.warn("[Core] 找不到 Events 資料夾，跳過事件載入。");
 }
-console.log(`[系統] 成功載入 ${eventFiles.length} 個事件。`);
 
-// ==========================================
-// ## 機器人登入
-// ==========================================
-const token = process.env.DISCORD_TOKEN;
-
-if (!token) {
-  console.error("[錯誤] 找不到 DISCORD_TOKEN，請確認環境變數設定。");
+// 5. 機器人登入
+if (!process.env.DISCORD_TOKEN) {
+  logger.error("[Core] 啟動失敗：未設定 DISCORD_TOKEN 環境變數！");
   process.exit(1);
 }
 
-client.login(token).catch((err) => {
-  console.error("[錯誤] 機器人登入失敗：", err);
-});
-
-// ==========================================
-// ## Log紀錄
-// ==========================================
-process.on('unhandledRejection', (reason, promise) => {
-    logger.error('Unhandled Rejection at:', promise, 'reason:', reason);
-});
-
-process.on('uncaughtException', (error) => {
-    logger.error('Uncaught Exception thrown:', error);
-});
+logger.info("[Core] 準備登入 Discord API...");
+client
+  .login(process.env.DISCORD_TOKEN)
+  .then(() => {
+    logger.info("[Core] 登入請求發送成功，等待 ready 事件觸發...");
+  })
+  .catch((error) => {
+    logger.error(`[Core] 機器人登入失敗: ${error.stack || error.message}`);
+  });

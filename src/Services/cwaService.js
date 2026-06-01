@@ -1,6 +1,6 @@
 const { formatCityName } = require("../Utils/helper");
+const logger = require("../Utils/logger"); // 引入 logger
 
-/** CWA 回傳的時間為台灣當地時間，需明確加上 +08:00（避免 VM 在 UTC 時解析錯誤） */
 function parseCwaTime(timeStr) {
   return new Date(`${timeStr.replace(" ", "T")}+08:00`);
 }
@@ -16,10 +16,6 @@ function toTaipeiDateStr(date) {
     .replace(/\//g, "-");
 }
 
-/**
- * 取得台灣時區（Asia/Taipei）的日期字串，格式 YYYY-MM-DD
- * @param {number} offsetDays 0 = 今天，1 = 明天
- */
 function getTaipeiDateStr(offsetDays = 0) {
   const ms = Date.now() + offsetDays * 86400000;
   return toTaipeiDateStr(new Date(ms));
@@ -29,9 +25,6 @@ function getSlotDateStr(startTime) {
   return toTaipeiDateStr(parseCwaTime(startTime));
 }
 
-/**
- * 過濾出指定日 00:00 ~ 23:59（台灣時間）範圍內的時段
- */
 function getSlotsForDateStr(timeArray, dateStr) {
   const dayStart = new Date(`${dateStr}T00:00:00+08:00`);
   const dayEnd = new Date(`${dateStr}T23:59:59+08:00`);
@@ -43,11 +36,6 @@ function getSlotsForDateStr(timeArray, dateStr) {
   });
 }
 
-/**
- * 決定要彙整的目標日期。
- * 查詢今日時，若 API 已無今日時段（常見於傍晚後資料更新），
- * 改採回傳資料中最早一天的時段，避免啟動推播出現「無資料」。
- */
 function resolveTargetDateStr(wxSlots, dayOffset) {
   const targetStr = getTaipeiDateStr(dayOffset);
   if (getSlotsForDateStr(wxSlots, targetStr).length > 0) return targetStr;
@@ -67,10 +55,6 @@ function pickValues(slots) {
     .filter((val) => val !== undefined && val !== null);
 }
 
-/**
- * @param {string} locationName
- * @param {{ dayOffset?: number }} [options] dayOffset: 0 = 今天，1 = 明天
- */
 async function fetchWeather(locationName, options = {}) {
   const { dayOffset = 0 } = options;
   const city = formatCityName(locationName);
@@ -80,11 +64,21 @@ async function fetchWeather(locationName, options = {}) {
   url.searchParams.set("format", "JSON");
   url.searchParams.set("locationName", city);
 
+  logger.info(
+    `[CwaService] 準備向氣象署 API 請求資料 (城市: ${city}, 日期偏移: ${dayOffset})`,
+  );
+
   try {
     const res = await fetch(url.toString());
     const json = await res.json();
     const loc = json?.records?.location?.[0];
-    if (!loc) return null;
+
+    if (!loc) {
+      logger.warn(
+        `[CwaService] 氣象署 API 回傳成功，但找不到城市資料: ${city}`,
+      );
+      return null;
+    }
 
     const elMap = {};
     for (const el of loc.weatherElement || []) {
@@ -120,6 +114,8 @@ async function fetchWeather(locationName, options = {}) {
       day: "numeric",
     });
 
+    logger.info(`[CwaService] 成功解析 ${city} 的天氣預報資料`);
+
     return {
       location: loc.locationName,
       wx,
@@ -128,11 +124,13 @@ async function fetchWeather(locationName, options = {}) {
       maxT,
       ci,
       dateLabel: labelDate,
-      dayLabel:
-        dayOffset === 0 ? "今日" : getDayLabel(targetDateStr) || "明日",
+      dayLabel: dayOffset === 0 ? "今日" : getDayLabel(targetDateStr) || "明日",
     };
   } catch (err) {
-    console.error("CWA API Error:", err);
+    // 替換原本的 console.error
+    logger.error(
+      `[CwaService] 呼叫氣象署 API 或解析資料時發生錯誤: ${err.stack || err.message}`,
+    );
     return null;
   }
 }

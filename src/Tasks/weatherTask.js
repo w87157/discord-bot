@@ -3,9 +3,10 @@ const config = require("../../config");
 const { EmbedBuilder } = require("discord.js");
 const { fetchWeather } = require("../Services/cwaService");
 const supabase = require("../Services/supabase");
+const logger = require("../Utils/logger");
 
 const sendWeatherReports = async (client) => {
-  console.log("⏰ 執行定時天氣發送任務 (資料庫排程)...");
+  logger.info("[WeatherTask] ⏰ 執行定時天氣發送任務 (資料庫排程)...");
 
   try {
     const { data: subs, error } = await supabase
@@ -14,14 +15,14 @@ const sendWeatherReports = async (client) => {
 
     if (error) throw error;
     if (!subs || subs.length === 0) {
-      console.log("目前沒有任何訂閱資料。");
+      logger.info("[WeatherTask] 目前沒有任何訂閱資料，跳過播報。");
       return;
     }
 
     for (const sub of subs) {
       const data = await fetchWeather(sub.city);
       if (!data) {
-        console.error(`無法獲取城市天氣: ${sub.city}`);
+        logger.error(`[WeatherTask] 無法從 API 獲取城市天氣資料: ${sub.city}`);
         continue;
       }
 
@@ -33,7 +34,9 @@ const sendWeatherReports = async (client) => {
               const oldMsg = await channel.messages.fetch(sub.last_message_id);
               if (oldMsg) await oldMsg.delete();
             } catch (err) {
-              console.log(`無法刪除舊訊息。`);
+              logger.warn(
+                `[WeatherTask] 無法刪除舊訊息 (頻道: ${sub.channel_id}, 訊息 ID: ${sub.last_message_id})`,
+              );
             }
           }
 
@@ -64,24 +67,39 @@ const sendWeatherReports = async (client) => {
             .from("weather_subscriptions")
             .update({ last_message_id: sentMsg.id })
             .match({ channel_id: sub.channel_id, user_id: sub.user_id });
+
+          logger.info(
+            `[WeatherTask] 成功發送 ${data.location} 的預報至頻道 ${sub.channel_id}`,
+          );
         }
       } catch (err) {
-        console.error(`頻道 ${sub.channel_id} 發送失敗:`, err.message);
+        logger.error(
+          `[WeatherTask] 發送預報至頻道 ${sub.channel_id} 失敗: ${err.stack || err.message}`,
+        );
       }
     }
   } catch (err) {
-    console.error("執行定時任務時發生錯誤:", err);
+    logger.error(
+      `[WeatherTask] 執行天氣定時任務時發生錯誤: ${err.stack || err.message}`,
+    );
   }
 };
 
 module.exports = (client) => {
+  // 啟動機器人時先執行一次
   sendWeatherReports(client);
 
+  // 註冊背景定時排程
   cron.schedule(
     config.weather.schedule,
     async () => {
       await sendWeatherReports(client);
     },
     { timezone: config.weather.timezone },
+  );
+
+  // 記錄排程已成功啟動
+  logger.info(
+    `[系統] 天氣預報 排程已載入完成 (時區: ${config.weather.timezone})`,
   );
 };

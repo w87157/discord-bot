@@ -1,5 +1,6 @@
 const axios = require("axios");
 const crypto = require("crypto");
+const logger = require("../Utils/logger");
 
 // 常數設定
 const ATTENDANCE_URL =
@@ -12,12 +13,10 @@ function generateSign(path, body, timestamp, token, platform, vName) {
   const headerJson = `{"platform":"${platform}","timestamp":"${timestamp}","dId":"","vName":"${vName}"}`;
   str += headerJson;
 
-  // HMAC-SHA256
   const hmacHex = crypto
     .createHmac("sha256", token || "")
     .update(str)
     .digest("hex");
-  // MD5
   const sign = crypto.createHash("md5").update(hmacHex).digest("hex");
   return sign;
 }
@@ -58,15 +57,17 @@ async function autoClaimFunction() {
   const platform = "3";
   const vName = "1.0.0";
 
-  console.log(`[${accountName}] 開始執行簽到流程...`);
+  logger.info(`[AttendanceService] [${accountName}] 開始執行簽到流程...`);
   const timestamp = Math.floor(Date.now() / 1000).toString();
 
   let token = "";
   try {
     token = await refreshToken(cred, platform, vName);
-    console.log(`[${accountName}] Token 刷新成功。`);
+    logger.info(`[AttendanceService] [${accountName}] Token 刷新成功。`);
   } catch (e) {
-    console.error(`[${accountName}] Token 刷新失敗: ${e.message}`);
+    logger.error(
+      `[AttendanceService] [${accountName}] Token 刷新失敗: ${e.message}`,
+    );
   }
 
   const sign = generateSign(
@@ -106,10 +107,12 @@ async function autoClaimFunction() {
     });
 
     const responseJson = response.data;
-    console.log(`[${accountName}] API 回傳資料:`, responseJson);
+    // 使用 JSON.stringify 以防 object 被強制轉字串變成 [object Object]
+    logger.info(
+      `[AttendanceService] [${accountName}] API 回傳資料: ${JSON.stringify(responseJson)}`,
+    );
 
     if (responseJson.code === 0) {
-      // 檢查是否真的有拿到獎勵資料
       if (
         responseJson.data &&
         responseJson.data.awardIds &&
@@ -127,30 +130,41 @@ async function autoClaimFunction() {
               : `道具ID: ${award.id}`;
           })
           .join("\n");
+        logger.info(
+          `[AttendanceService] [${accountName}] 簽到成功，獲得新獎勵。`,
+        );
       } else {
-        // Code 為 0 但沒有獎勵，代表今天已經簽到過了
         result.success = true;
         result.status = "👌 今天已經簽到過囉";
         result.rewards = "無新獎勵";
+        logger.info(`[AttendanceService] [${accountName}] 今天已經簽到過了。`);
       }
     } else if (responseJson.code === 10001) {
       result.success = true;
       result.status = "👌 今天已經簽到過囉";
       result.rewards = "無新獎勵";
+      logger.info(
+        `[AttendanceService] [${accountName}] (代碼 10001) 今天已經簽到過了。`,
+      );
     } else {
       result.success = false;
       result.status = `❌ 錯誤 (代碼: ${responseJson.code})`;
       result.rewards = responseJson.message || "未知錯誤";
+      logger.warn(
+        `[AttendanceService] [${accountName}] 簽到失敗，代碼: ${responseJson.code}, 訊息: ${responseJson.message}`,
+      );
     }
   } catch (error) {
     result.success = false;
     result.status = "💥 程式異常";
     result.rewards = error.message;
+    logger.error(
+      `[AttendanceService] [${accountName}] 程式異常: ${error.stack || error.message}`,
+    );
   }
   return result;
 }
 
-// 匯出給其他模組 (例如 Commands 和 Tasks) 使用
 module.exports = {
   autoClaimFunction,
 };
