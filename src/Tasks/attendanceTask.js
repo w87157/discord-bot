@@ -3,9 +3,9 @@ const { autoClaimFunction } = require("../Services/attendanceService");
 const { createReportEmbed } = require("../Utils/attendanceEmbed");
 
 module.exports = (client) => {
-  // 設定定時任務：每天早上 08:30 自動執行並發送到指定頻道
+  // 設定定時任務：每天早上 00:05 自動執行並發送到指定頻道
   cron.schedule(
-    "30 8 * * *",
+    "5 0 * * *",
     async () => {
       console.log("時鐘已到，觸發自動簽到任務...");
       const result = await autoClaimFunction();

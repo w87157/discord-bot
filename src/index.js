@@ -3,9 +3,10 @@ const fs = require("node:fs");
 const path = require("node:path");
 const { Client, Collection, GatewayIntentBits } = require("discord.js");
 const express = require("express");
+const logger = require("./Utils/logger");
 
 // ==========================================
-// 1. 初始化 Web 伺服器 (防止免費託管平台休眠)
+// ## 初始化 Web 伺服器 (防止免費託管平台休眠)
 // ==========================================
 const app = express();
 const port = process.env.PORT || 3000;
@@ -13,7 +14,7 @@ app.get("/", (req, res) => res.send("天氣機器人運作中！🤖"));
 app.listen(port, () => console.log(`[系統] 網頁伺服器已啟動於 port ${port}`));
 
 // ==========================================
-// 2. 建立 Discord Client
+// ## 建立 Discord Client
 // ==========================================
 const client = new Client({
   intents: [
@@ -26,7 +27,7 @@ const client = new Client({
 client.commands = new Collection();
 
 // ==========================================
-// 3. 動態載入 Commands (斜線指令)
+// ## 動態載入 Commands (斜線指令)
 // ==========================================
 const commandsPath = path.join(__dirname, "Commands");
 // 讀取 Commands 資料夾內所有 .js 結尾的檔案
@@ -50,7 +51,7 @@ for (const file of commandFiles) {
 console.log(`[系統] 成功載入 ${client.commands.size} 個指令。`);
 
 // ==========================================
-// 4. 動態載入 Events (事件監聽)
+// ## 動態載入 Events (事件監聽)
 // ==========================================
 const eventsPath = path.join(__dirname, "Events");
 // 讀取 Events 資料夾內所有 .js 結尾的檔案
@@ -72,7 +73,7 @@ for (const file of eventFiles) {
 console.log(`[系統] 成功載入 ${eventFiles.length} 個事件。`);
 
 // ==========================================
-// 5. 機器人登入
+// ## 機器人登入
 // ==========================================
 const token = process.env.DISCORD_TOKEN;
 
@@ -83,4 +84,15 @@ if (!token) {
 
 client.login(token).catch((err) => {
   console.error("[錯誤] 機器人登入失敗：", err);
+});
+
+// ==========================================
+// ## Log紀錄
+// ==========================================
+process.on('unhandledRejection', (reason, promise) => {
+    logger.error('Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
+process.on('uncaughtException', (error) => {
+    logger.error('Uncaught Exception thrown:', error);
 });
