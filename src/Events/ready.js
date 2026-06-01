@@ -13,7 +13,7 @@ module.exports = {
       logger.info(`[系統] 目前正在監聽 ${client.guilds.cache.size} 個伺服器`);
 
       // 設定機器人的狀態
-      client.user.setActivity("伺服器運行中...", {
+      client.user.setActivity("運行中...", {
         type: ActivityType.Playing,
       });
       logger.info(`[系統] 機器人狀態 (Activity) 已更新`);

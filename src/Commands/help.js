@@ -1,4 +1,4 @@
-const { SlashCommandBuilder } = require("discord.js");
+const { SlashCommandBuilder, MessageFlags } = require("discord.js");
 const helpUi = require("../Utils/helpUi"); // 引入你的 UI 工具
 
 module.exports = {
@@ -8,12 +8,17 @@ module.exports = {
 
   async execute(interaction) {
     try {
-      // 假設 helpUi.js 內有匯出一個生成 Embed 的函式 (例如 generateHelpEmbed)
-      // 請根據你 helpUi.js 實際寫的函式名稱做修改
-      const embedMessage = helpUi.generateHelpEmbed();
+      // 1. 修正函式名稱為 helpUi.js 中實際匯出的 buildHelpEmbed
+      const embedMessage = helpUi.buildHelpEmbed();
 
-      // 發送 Embed 回覆
-      await interaction.reply({ embeds: [embedMessage] });
+      // 2. 取得下拉式選單組件，讓使用者可以點擊互動
+      const components = helpUi.buildHelpComponents();
+
+      // 發送 Embed 與選單組件回覆
+      await interaction.reply({
+        embeds: [embedMessage],
+        components: components,
+      });
     } catch (error) {
       console.error("[指令錯誤] help:", error);
 
@@ -25,7 +30,11 @@ module.exports = {
         `\`/unsubscribe\` - 取消本頻道的訂閱 (限管理員)\n` +
         `\`/ping\` - 檢查機器人連線延遲`;
 
-      await interaction.reply({ content: fallbackText, ephemeral: true });
+      // 3. 修正 ephemeral 警告，改用 MessageFlags.Ephemeral
+      await interaction.reply({
+        content: fallbackText,
+        flags: MessageFlags.Ephemeral,
+      });
     }
   },
 };

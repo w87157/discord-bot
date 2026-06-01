@@ -64,6 +64,11 @@ async function fetchWeather(locationName, options = {}) {
   url.searchParams.set("format", "JSON");
   url.searchParams.set("locationName", city);
 
+  if (!process.env.CWA_API_KEY) {
+    logger.error("[CwaService] 缺少 CWA_API_KEY 環境變數，無法請求天氣資料。");
+    return null;
+  }
+
   logger.info(
     `[CwaService] 準備向氣象署 API 請求資料 (城市: ${city}, 日期偏移: ${dayOffset})`,
   );

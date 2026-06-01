@@ -19,16 +19,31 @@ const sendWeatherReports = async (client) => {
       return;
     }
 
+    const weatherCache = {};
+
     for (const sub of subs) {
-      const data = await fetchWeather(sub.city);
+      // 檢查快取中是否已經有該城市的資料，若無才向 API 請求
+      if (!weatherCache[sub.city]) {
+        logger.info(`[WeatherTask] 正在向 API 獲取 ${sub.city} 的天氣資料...`);
+        const fetchedData = await fetchWeather(sub.city);
+        // 將結果存入快取 (若 API 發生錯誤回傳 null，也會存起來避免重複失敗請求)
+        weatherCache[sub.city] = fetchedData;
+      }
+
+      // 從快取取得對應城市的資料
+      const data = weatherCache[sub.city];
+
       if (!data) {
-        logger.error(`[WeatherTask] 無法從 API 獲取城市天氣資料: ${sub.city}`);
+        logger.error(
+          `[WeatherTask] 無法獲取城市天氣資料: ${sub.city}，已跳過該筆發送任務。`,
+        );
         continue;
       }
 
       try {
         const channel = await client.channels.fetch(sub.channel_id);
         if (channel) {
+          // 若有上一則天氣訊息的 ID，嘗試將其刪除以保持頻道整潔
           if (sub.last_message_id) {
             try {
               const oldMsg = await channel.messages.fetch(sub.last_message_id);
@@ -40,6 +55,7 @@ const sendWeatherReports = async (client) => {
             }
           }
 
+          // 建立天氣預報的 Embed 訊息
           const embed = new EmbedBuilder()
             .setColor(0xf1c40f)
             .setTitle(`🌅 每日天氣預報 - ${data.location}`)
@@ -59,10 +75,12 @@ const sendWeatherReports = async (client) => {
               text: `${data.dateLabel} ${data.dayLabel}全日預報`,
             });
 
+          // 發送訊息至頻道
           const sentMsg = await channel.send({
             embeds: [embed],
           });
 
+          // 更新資料庫中該筆訂閱紀錄的最新訊息 ID
           await supabase
             .from("weather_subscriptions")
             .update({ last_message_id: sentMsg.id })

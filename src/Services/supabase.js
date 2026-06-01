@@ -6,6 +6,7 @@ if (!process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY) {
   logger.error(
     "[Supabase] 啟動警告：缺少 SUPABASE_URL 或 SUPABASE_ANON_KEY 環境變數！",
   );
+  throw new Error("Supabase 環境變數未設定，無法初始化資料庫。");
 }
 
 const supabase = createClient(
