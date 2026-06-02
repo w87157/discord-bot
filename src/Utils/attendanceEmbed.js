@@ -15,8 +15,6 @@ function createReportEmbed(result) {
     .setThumbnail(
       "https://pbs.twimg.com/profile_images/1984225639407529984/2_3-HRTS_400x400.jpg",
     );
-
-  return embed;
 }
 
 module.exports = {
