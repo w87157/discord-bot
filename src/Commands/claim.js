@@ -1,4 +1,4 @@
-const { SlashCommandBuilder } = require("discord.js");
+const { SlashCommandBuilder, MessageFlags } = require("discord.js");
 const { autoClaimFunction } = require("../Services/attendanceService");
 const { createReportEmbed } = require("../Utils/attendanceEmbed");
 const supabase = require("../Services/supabase");
@@ -11,7 +11,7 @@ module.exports = {
 
   async execute(interaction) {
     // 使用 ephemeral 避免個人的簽到結果刷屏或洩漏隱私
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     try {
       // 搜尋該使用者的設定

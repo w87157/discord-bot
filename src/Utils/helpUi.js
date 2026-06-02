@@ -1,13 +1,10 @@
 const {
   EmbedBuilder,
   ActionRowBuilder,
-  StringSelectMenuBuilder,
-  StringSelectMenuOptionBuilder,
+  ButtonBuilder,
+  ButtonStyle,
 } = require("discord.js");
 const config = require("../../config");
-const { CITIES } = require("./helper");
-
-const CITY_BACK_VALUE = "__back__";
 
 function formatScheduleTime(cron) {
   const parts = cron.trim().split(/\s+/);
@@ -19,114 +16,89 @@ function formatScheduleTime(cron) {
   return cron;
 }
 
-function buildHelpEmbed() {
-  const prefix = config.prefix;
-  const scheduleTime = formatScheduleTime(config.weather.schedule);
-  const defaultCity = config.weather.defaultCity;
+// 根據傳入的 view ('main' 或是 'tutorial') 來產生不同的畫面
+function buildHelpEmbed(view = "main") {
+  // --- 教學專屬頁面 ---
+  if (view === "tutorial") {
+    return new EmbedBuilder()
+      .setColor(0x3498db) // 教學頁面改用藍色區隔
+      .setTitle("🔍 | 如何獲取簽到憑證 (cred / role_id)？")
+      .setDescription(
+        [
+          "請按照以下步驟獲取您的遊戲簽到憑證：",
+          "",
+          "**1.** 使用電腦瀏覽器登入 [遊戲官方簽到網站](https://game.skport.com/endfield/sign-in)。",
+          "**2.** 按下 `F12` 鍵開啟開發者工具，切換至 **Network (網路)** 頁籤。",
+          "**3.** **重新整理網頁 (F5)**，在網路請求清單中找到並點擊 `attendance`。",
+          "*(💡 提示：若清單空白，請確認左上角「🔴錄製」是否有亮紅燈)*",
+          "**4.** 在右側面板點選 **Headers**，向下滑動找到 **Request Headers** 區塊。",
+          "**5.** 複製 `Cred` 欄位的值與 `sk-game-role` 欄位的值 (作為 role_id)。",
+          "",
+          "⚠️ **安全警告：`Cred` 相當於您的帳號憑證，切勿截圖或透露給任何人！**",
+        ].join("\n"),
+      )
+      .setTimestamp();
+  }
+
+  // --- 預設的指令總表頁面 ---
+  const weatherTime = formatScheduleTime(config.weather.schedule);
+  const attendanceTime = formatScheduleTime(config.attendance.schedule);
+
+  const descriptionLines = [
+    "請直接輸入以下斜線指令來操作：",
+    "",
+    "**【🌤️ 天氣預報系統】**",
+    `**明日預報查詢** — \`/weather [城市]\``,
+    `**訂閱預報** — \`/subscribe [城市]\``,
+    `**取消訂閱** — \`/unsubscribe\``,
+    "",
+    "**【🎮 遊戲簽到系統 (終末地)】**",
+    `**設定簽到憑證** — \`/set_profile cred:[您的cred] role_id:[您的role_id]\``,
+    `**手動簽到** — \`/claim\``,
+    "",
+    "**【🛠️ 其他功能】**",
+    `**延遲測試** — \`/ping\``,
+    `**指令總表** — \`/help\``,
+    "",
+  ];
 
   return new EmbedBuilder()
     .setColor(0x2ecc71)
-    .setTitle("🤖 機器人指令總表")
-    .setDescription(
-      [
-        "從下方選單**直接操作**，或使用文字指令：",
-        "",
-        `**明日預報查詢** — \`${prefix}天氣 [城市]\``,
-        `**訂閱預報** — \`${prefix}訂閱 天氣 [城市]\``,
-        `**取消訂閱** — \`${prefix}取消訂閱 天氣\``,
-        `**延遲測試** — \`${prefix}ping\``,
-        "",
-        `未填城市時預設為 **${defaultCity}**。`,
-      ].join("\n"),
-    )
+    .setTitle("📖 | 指令總表")
+    .setDescription(descriptionLines.join("\n"))
     .addFields({
       name: "📅 定時推送",
-      value: `每日 **${scheduleTime}**（${config.weather.timezone}）`,
+      value: [
+        `**🌤️ 天氣預報**：每日 **${weatherTime}**（${config.weather.timezone}）`,
+        `**🎮 遊戲簽到**：每日 **${attendanceTime}**（${config.attendance.timezone}）`,
+      ].join("\n"),
     })
-    .setFooter({ text: "查詢／訂閱時請從下拉選單選擇城市" })
     .setTimestamp();
 }
 
-function buildCitySelectEmbed(title) {
-  return new EmbedBuilder()
-    .setColor(0x3498db)
-    .setTitle(title)
-    .setDescription("請從下方選單選擇縣市。");
-}
+// 根據目前的頁面，產生對應的按鈕
+function buildHelpComponents(view = "main") {
+  if (view === "tutorial") {
+    // 如果在教學頁面，顯示「返回按鈕」
+    const backButton = new ButtonBuilder()
+      .setCustomId("show_help_main")
+      .setLabel("⬅️ 返回指令總表")
+      .setStyle(ButtonStyle.Secondary);
 
-function buildHelpSelectMenu() {
-  return new StringSelectMenuBuilder()
-    .setCustomId("help_menu")
-    .setPlaceholder("選擇要執行的功能...")
-    .addOptions(
-      new StringSelectMenuOptionBuilder()
-        .setLabel("明日天氣查詢")
-        .setDescription("選擇城市後顯示明日預報")
-        .setEmoji("🌦️")
-        .setValue("weather"),
-      new StringSelectMenuOptionBuilder()
-        .setLabel("訂閱每日預報")
-        .setDescription("選擇城市後開啟每日自動推送")
-        .setEmoji("🔔")
-        .setValue("subscribe"),
-      new StringSelectMenuOptionBuilder()
-        .setLabel("取消每日預報")
-        .setDescription("停止此頻道的自動推送")
-        .setEmoji("🔕")
-        .setValue("unsubscribe"),
-      new StringSelectMenuOptionBuilder()
-        .setLabel("延遲測試")
-        .setDescription("檢查機器人連線速度")
-        .setEmoji("🏓")
-        .setValue("ping"),
-    );
-}
+    return [new ActionRowBuilder().addComponents(backButton)];
+  }
 
-function buildHelpActionRow() {
-  return new ActionRowBuilder().addComponents(buildHelpSelectMenu());
-}
+  // 如果在主選單，顯示「前往教學按鈕」
+  const tutorialButton = new ButtonBuilder()
+    .setCustomId("show_help_tutorial")
+    .setLabel("🔍 如何取得簽到憑證")
+    .setStyle(ButtonStyle.Primary);
 
-function buildHelpComponents() {
-  return [buildHelpActionRow()];
-}
-
-function buildCitySelectMenu(action) {
-  const options = [
-    new StringSelectMenuOptionBuilder()
-      .setLabel("← 返回功能選單")
-      .setValue(CITY_BACK_VALUE),
-    ...CITIES.map((city) =>
-      new StringSelectMenuOptionBuilder().setLabel(city).setValue(city),
-    ),
-  ];
-
-  return new StringSelectMenuBuilder()
-    .setCustomId(`help_city_${action}`)
-    .setPlaceholder("請選擇縣市...")
-    .addOptions(options);
-}
-
-function buildCitySelectComponents(action) {
-  return [
-    new ActionRowBuilder().addComponents(buildCitySelectMenu(action)),
-  ];
-}
-
-/** 重設選單未選狀態，讓使用者可再次點選相同項目 */
-async function resetHelpSelectMenu(message) {
-  await message.edit({
-    embeds: [buildHelpEmbed()],
-    components: buildHelpComponents(),
-  });
+  return [new ActionRowBuilder().addComponents(tutorialButton)];
 }
 
 module.exports = {
-  CITY_BACK_VALUE,
   formatScheduleTime,
   buildHelpEmbed,
-  buildCitySelectEmbed,
-  buildHelpSelectMenu,
   buildHelpComponents,
-  buildCitySelectComponents,
-  resetHelpSelectMenu,
 };

@@ -1,4 +1,4 @@
-const { SlashCommandBuilder } = require("discord.js");
+const { SlashCommandBuilder, MessageFlags } = require("discord.js");
 const supabase = require("../Services/supabase");
 const { encrypt } = require("../Utils/crypto");
 
@@ -21,7 +21,7 @@ module.exports = {
 
   async execute(interaction) {
     // 確保回應只有使用者自己看得到，保護隱私
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     const cred = interaction.options.getString("cred");
     const skGameRole = interaction.options.getString("role_id");
