@@ -6,7 +6,6 @@ function createReportEmbed(result) {
     .setTitle("📡 明日方舟：終末地 簽到回報")
     .setColor(embedColor)
     .addFields(
-      { name: "👤 帳號名稱", value: result.name, inline: true },
       { name: "📊 狀態", value: result.status, inline: true },
       { name: "🎁 獎勵內容", value: result.rewards || "無" },
     )

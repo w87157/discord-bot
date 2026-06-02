@@ -50,24 +50,29 @@ async function refreshToken(cred, platform, vName) {
 }
 
 // ==== 3. 執行簽到核心邏輯 ====
-async function autoClaimFunction() {
-  const cred = process.env.ENDFIELD_CRED;
-  const skGameRole = process.env.ENDFIELD_SK_GAME_ROLE;
-  const accountName = process.env.ENDFIELD_ACCOUNT_NAME || "預設帳號";
+async function autoClaimFunction(userConfig) {
+  const { cred, skGameRole } = userConfig;
   const platform = "3";
   const vName = "1.0.0";
 
-  logger.info(`[AttendanceService] [${accountName}] 開始執行簽到流程...`);
+  if (!cred || !skGameRole) {
+    return {
+      success: false,
+      status: "❌ 設定缺失",
+      rewards: "未設定 CRED 或 Role ID",
+    };
+  }
+
+  logger.info(`[AttendanceService] 開始執行簽到流程...`);
   const timestamp = Math.floor(Date.now() / 1000).toString();
 
   let token = "";
   try {
     token = await refreshToken(cred, platform, vName);
-    logger.info(`[AttendanceService] [${accountName}] Token 刷新成功。`);
+    logger.info(`[AttendanceService  Token 刷新成功。`);
   } catch (e) {
-    logger.error(
-      `[AttendanceService] [${accountName}] Token 刷新失敗: ${e.message}`,
-    );
+    logger.error(`[AttendanceService] Token 刷新失敗: ${e.message}`);
+    return { success: false, status: "💥 Token 刷新失敗", rewards: e.message };
   }
 
   const sign = generateSign(
@@ -83,7 +88,6 @@ async function autoClaimFunction() {
     "User-Agent":
       "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:147.0) Gecko/20100101 Firefox/147.0",
     Accept: "*/*",
-    "Accept-Language": "zh-TW,zh;q=0.9,en-US;q=0.8,en;q=0.7",
     "Content-Type": "application/json",
     "sk-language": "zh-tw",
     "sk-game-role": skGameRole,
@@ -96,75 +100,53 @@ async function autoClaimFunction() {
     Referer: "https://game.skport.com/",
   };
 
-  let result = { name: accountName, success: false, status: "", rewards: "" };
+  let result = { success: false, status: "", rewards: "" };
 
   try {
     const response = await axios({
       method: "post",
-      url: ATTENDANCE_URL,
+      url: "https://zonai.skport.com/web/v1/game/endfield/attendance",
       headers: headers,
       validateStatus: () => true,
     });
 
     const responseJson = response.data;
-    // 使用 JSON.stringify 以防 object 被強制轉字串變成 [object Object]
     logger.info(
-      `[AttendanceService] [${accountName}] API 回傳資料: ${JSON.stringify(responseJson)}`,
+      `[AttendanceService] API 回傳資料: ${JSON.stringify(responseJson)}`,
     );
 
     if (responseJson.code === 0) {
-      if (
-        responseJson.data &&
-        responseJson.data.awardIds &&
-        responseJson.data.awardIds.length > 0
-      ) {
+      if (responseJson.data?.awardIds?.length > 0) {
         result.success = true;
         result.status = "✅ 簽到成功";
         result.rewards = responseJson.data.awardIds
           .map((award) => {
-            const resource = responseJson.data.resourceInfoMap
-              ? responseJson.data.resourceInfoMap[award.id]
-              : null;
+            const resource = responseJson.data.resourceInfoMap?.[award.id];
             return resource
               ? `${resource.name} x${resource.count}`
               : `道具ID: ${award.id}`;
           })
           .join("\n");
-        logger.info(
-          `[AttendanceService] [${accountName}] 簽到成功，獲得新獎勵。`,
-        );
       } else {
         result.success = true;
         result.status = "👌 今天已經簽到過囉";
         result.rewards = "無新獎勵";
-        logger.info(`[AttendanceService] [${accountName}] 今天已經簽到過了。`);
       }
     } else if (responseJson.code === 10001) {
       result.success = true;
       result.status = "👌 今天已經簽到過囉";
       result.rewards = "無新獎勵";
-      logger.info(
-        `[AttendanceService] [${accountName}] (代碼 10001) 今天已經簽到過了。`,
-      );
     } else {
       result.success = false;
       result.status = `❌ 錯誤 (代碼: ${responseJson.code})`;
       result.rewards = responseJson.message || "未知錯誤";
-      logger.warn(
-        `[AttendanceService] [${accountName}] 簽到失敗，代碼: ${responseJson.code}, 訊息: ${responseJson.message}`,
-      );
     }
   } catch (error) {
     result.success = false;
     result.status = "💥 程式異常";
     result.rewards = error.message;
-    logger.error(
-      `[AttendanceService] [${accountName}] 程式異常: ${error.stack || error.message}`,
-    );
   }
   return result;
 }
 
-module.exports = {
-  autoClaimFunction,
-};
+module.exports = { autoClaimFunction };
