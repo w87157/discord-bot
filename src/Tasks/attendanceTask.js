@@ -1,9 +1,9 @@
-// src/Tasks/attendanceTask.js
 const cron = require("node-cron");
 const config = require("../../config");
 const { autoClaimFunction } = require("../Services/attendanceService");
 const supabase = require("../Services/supabase");
 const logger = require("../Utils/logger");
+const { decrypt } = require("../Utils/crypto");
 
 const runDailyAttendance = async () => {
   logger.info("[AttendanceTask] ⏰ 執行全體定時自動簽到任務...");
@@ -23,9 +23,21 @@ const runDailyAttendance = async () => {
     // 依序幫每位使用者簽到
     for (const userConfig of userConfigs) {
       try {
+        // 核心修改：將資料庫撈出的密文進行解密
+        const decryptedCred = decrypt(userConfig.cred);
+        const decryptedRole = decrypt(userConfig.sk_game_role);
+
+        // 防護機制：如果解密失敗（可能因為 .env 金鑰變更或資料損毀）
+        if (!decryptedCred || !decryptedRole) {
+          logger.error(
+            `[AttendanceTask] 使用者 ${userConfig.user_name} 憑證解密失敗，已跳過。`,
+          );
+          continue; // 跳過此使用者，繼續處理下一位
+        }
+
         const result = await autoClaimFunction({
-          cred: userConfig.cred,
-          skGameRole: userConfig.sk_game_role,
+          cred: decryptedCred,
+          skGameRole: decryptedRole,
         });
 
         logger.info(
@@ -46,7 +58,6 @@ const runDailyAttendance = async () => {
 };
 
 module.exports = (client) => {
-  // 註冊背景定時排程 (讀取 config.js 裡設定好的時間)
   cron.schedule(
     config.attendance.schedule,
     async () => {

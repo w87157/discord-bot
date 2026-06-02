@@ -1,5 +1,6 @@
 const { SlashCommandBuilder } = require("discord.js");
 const supabase = require("../Services/supabase");
+const { encrypt } = require("../Utils/crypto");
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -26,12 +27,15 @@ module.exports = {
     const skGameRole = interaction.options.getString("role_id");
 
     try {
+      const encryptedCred = encrypt(cred);
+      const encryptedRole = encrypt(skGameRole);
+
       const { error } = await supabase.from("attendance_configs").upsert(
         {
           user_id: interaction.user.id,
           user_name: interaction.user.username,
-          cred: cred,
-          sk_game_role: skGameRole,
+          cred: encryptedCred,
+          sk_game_role: encryptedRole,
           updated_at: new Date().toISOString(),
         },
         { onConflict: "user_id" },
